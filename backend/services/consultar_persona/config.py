@@ -1,3 +1,6 @@
+
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -7,11 +10,11 @@ class Config(BaseSettings):
     PGDATABASE: str = "gestion_personas"
     PGUSER: str = "gestion_api"
     PGPASSWORD: str
-    ENTRA_TENANT_ID: str
-    ENTRA_API_CLIENT_ID: str
-    ENTRA_REQUIRED_SCOPE: str = "personas.leer"
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=Path(__file__).with_name(".env"),
+        extra="ignore",
+    )
 
 
 config = Config()
