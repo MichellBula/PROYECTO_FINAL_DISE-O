@@ -1,0 +1,137 @@
+
+.auditoria {
+  background: white;
+  padding: 25px;
+  border: 1px solid #dfe5ee;
+  border-radius: 14px;
+  margin-top: 20px;
+}
+
+.auditoria-encabezado h3 {
+  color: #172a4a;
+  margin-top: 0;
+}
+
+.auditoria-encabezado p {
+  color: #65748b;
+  font-size: 14px;
+}
+
+.auditoria-aviso {
+  background: #eef3ff;
+  color: #34568b;
+  padding: 13px;
+  border-radius: 9px;
+  font-size: 13px;
+  margin: 20px 0;
+}
+
+.auditoria-filtros {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 15px;
+}
+
+.auditoria-filtros label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #34445b;
+}
+
+.auditoria-filtros input,
+.auditoria-filtros select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d6dfeb;
+  border-radius: 9px;
+  font-size: 14px;
+}
+
+.auditoria-limpiar {
+  background: #3268cc;
+  color: white;
+  border: none;
+  border-radius: 9px;
+  padding: 12px 20px;
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 22px;
+}
+
+.auditoria-tabla-contenedor {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.auditoria-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 650px;
+}
+
+.auditoria-tabla th {
+  background: #172a4a;
+  color: white;
+  padding: 14px;
+  text-align: left;
+}
+
+.auditoria-tabla td {
+  padding: 13px;
+  border-bottom: 1px solid #e0e6f0;
+  color: #34445b;
+  overflow-wrap: anywhere;
+}
+
+.auditoria-tabla tbody tr:hover {
+  background: #f5f8fd;
+}
+
+.auditoria-estado {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.auditoria-estado.exito {
+  background: #e0f5e9;
+  color: #17653d;
+}
+
+.auditoria-estado.error {
+  background: #fff0f0;
+  color: #a52d2d;
+}
+
+.auditoria-estado.denegado {
+  background: #fff1dc;
+  color: #936015;
+}
+
+.auditoria-vacio {
+  text-align: center;
+  padding: 25px !important;
+}
+
+.auditoria-total {
+  color: #65748b;
+  font-size: 13px;
+  margin-top: 15px;
+}
+
+@media (max-width: 700px) {
+  .auditoria-filtros {
+    grid-template-columns: 1fr;
+  }
+
+  .auditoria {
+    padding: 16px;
+  }
+}

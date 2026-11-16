@@ -38,3 +38,166 @@ h2 { margin: 0; font-size: 20px; letter-spacing: -.02em; }
 .resultado pre { max-height: 400px; overflow: auto; background: #131e33; color: #ecf3ff; padding: 20px; border-radius: 10px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; }
 .pie { color: #8996a9; text-align: center; font-size: 12px; margin-top: 36px; }
 @media (max-width: 800px) { .contenido { grid-template-columns: 1fr; } .presentacion { align-items: start; flex-direction: column; } .cabecera { align-items: start; flex-direction: column; margin-bottom: 32px; } }
+
+
+/* ===== CENTRAR Y MEJORAR LA VISTA PRINCIPAL ===== */
+
+.pagina {
+  min-height: 100vh;
+  padding: 32px 20px 48px;
+  background: var(--fondo);
+  color: var(--claro);
+}
+
+/* Todo el contenido principal centrado */
+.cabecera,
+.presentacion,
+.contenido,
+.mensaje,
+.resultado,
+.menu-sistema,
+.pie {
+  width: 100%;
+  max-width: 1150px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Encabezado */
+.cabecera {
+  margin-bottom: 22px;
+  padding: 18px 24px;
+  border-radius: 18px;
+}
+
+/* Bloque del título */
+.presentacion {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding: 30px 32px;
+  margin-bottom: 28px;
+  border-radius: 22px;
+}
+
+.presentacion h1 {
+  margin: 10px 0 12px;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 1.08;
+}
+
+.subtitulo {
+  margin: 0;
+  font-size: 1.08rem;
+  max-width: 760px;
+}
+
+.indicador {
+  white-space: nowrap;
+  padding: 14px 18px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+/* Contenedor general */
+.contenido {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+/* Cuando NO hay sesión, centra el panel */
+.contenido-centrado {
+  justify-content: center;
+}
+
+/* Paneles */
+.panel {
+  width: 100%;
+  max-width: 560px;
+  padding: 28px;
+  border-radius: 22px;
+}
+
+.panel-encabezado {
+  margin-bottom: 20px;
+}
+
+.panel-encabezado h2 {
+  margin: 0 0 8px;
+  font-size: 1.9rem;
+}
+
+.panel-encabezado p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* Formulario */
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.formulario label {
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.formulario input,
+.formulario select,
+.formulario textarea {
+  width: 100%;
+  padding: 16px 18px;
+  font-size: 1rem;
+  border-radius: 14px;
+  box-sizing: border-box;
+}
+
+/* Botones */
+.boton,
+.boton-secundario {
+  width: 100%;
+  padding: 15px 18px;
+  margin-top: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  border-radius: 14px;
+}
+
+/* Mensajes */
+.mensaje,
+.aviso {
+  margin-top: 18px;
+  padding: 14px 18px;
+  max-width: 1150px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Pie */
+.pie {
+  margin-top: 32px;
+  padding: 16px 20px;
+  border-radius: 18px;
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .presentacion {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .indicador {
+    align-self: flex-start;
+  }
+
+  .panel {
+    max-width: 100%;
+  }
+}

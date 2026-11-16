@@ -1,0 +1,940 @@
+
+/* ============================================
+   TEMA MORADO OSCURO
+   SISTEMA DE GESTIÓN DE DATOS PERSONALES
+============================================ */
+
+:root {
+  --fondo: #2A2438;
+  --panel: #352F44;
+  --acento: #5C5470;
+  --claro: #DBD8E3;
+
+  --borde: rgba(219, 216, 227, 0.22);
+  --sombra: 0 10px 28px rgba(0, 0, 0, 0.2);
+
+  --radio: 12px;
+}
+
+/* ============================================
+   1. FONDO GENERAL
+============================================ */
+
+html,
+body,
+#root {
+  min-height: 100%;
+  background-color: var(--fondo);
+  color: var(--claro);
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+.pagina {
+  min-height: 100vh;
+  background-color: var(--fondo);
+  color: var(--claro);
+}
+
+/* ============================================
+   2. ENCABEZADO
+============================================ */
+
+.pagina .cabecera {
+  background: var(--panel);
+  color: var(--claro);
+  border-bottom: 1px solid var(--borde);
+  box-shadow: var(--sombra);
+}
+
+.pagina .marca {
+  color: var(--claro);
+  font-weight: 700;
+}
+
+.pagina .marca-icono {
+  background: var(--acento);
+  color: var(--claro);
+  border-radius: 10px;
+}
+
+.pagina .etiqueta {
+  background: var(--acento);
+  color: var(--claro);
+  border: 1px solid var(--borde);
+}
+
+/* ============================================
+   3. PRESENTACIÓN
+============================================ */
+
+.pagina .presentacion {
+  background: linear-gradient(
+    135deg,
+    #352F44 0%,
+    #2A2438 100%
+  );
+  color: var(--claro);
+  border: 1px solid var(--borde);
+  border-radius: 18px;
+}
+
+.pagina .presentacion h1 {
+  color: var(--claro);
+}
+
+.pagina .sobrelinea {
+  color: var(--claro);
+}
+
+.pagina .subtitulo {
+  color: var(--claro);
+  opacity: 0.9;
+}
+
+.pagina .indicador {
+  background: var(--acento);
+  color: var(--claro);
+  border: 1px solid var(--borde);
+}
+
+/* ============================================
+   4. TARJETAS Y PANELES
+============================================ */
+
+.pagina .panel,
+.pagina .crear-persona,
+.pagina .modificar-persona,
+.pagina .eliminar-persona,
+.pagina .auditoria,
+.pagina .chatbot-contenedor {
+  background: var(--panel);
+  color: var(--claro);
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  box-shadow: var(--sombra);
+}
+
+/* Títulos de cada módulo */
+
+.pagina .panel h2,
+.pagina .panel h3,
+.pagina .crear-persona h3,
+.pagina .modificar-persona h3,
+.pagina .eliminar-persona h3,
+.pagina .auditoria h3,
+.pagina .chatbot-contenedor h3 {
+  color: var(--claro);
+}
+
+/* Textos de las tarjetas */
+
+.pagina .panel-encabezado p,
+.pagina .crear-persona p,
+.pagina .modificar-persona p,
+.pagina .eliminar-persona > p,
+.pagina .auditoria-encabezado p,
+.pagina .chatbot-cabecera p,
+.pagina .muted {
+  color: var(--claro);
+  opacity: 0.9;
+}
+
+/* ============================================
+   5. FORMULARIOS
+============================================ */
+
+.pagina .formulario label,
+.pagina .crear-persona label,
+.pagina .modificar-persona label,
+.pagina .eliminar-persona label,
+.pagina .auditoria label,
+.pagina .chatbot-contenedor label {
+  color: var(--claro);
+  font-weight: 600;
+}
+
+/* Campos de texto y selección */
+
+.pagina input:not([type="checkbox"]):not([type="radio"]),
+.pagina select,
+.pagina textarea {
+  background-color: var(--claro);
+  color: var(--fondo);
+  border: 1px solid var(--acento);
+  border-radius: 10px;
+  box-sizing: border-box;
+}
+
+/* Campos en todos los módulos */
+
+.pagina .crear-persona input,
+.pagina .crear-persona select,
+.pagina .crear-persona textarea,
+.pagina .modificar-persona input,
+.pagina .modificar-persona select,
+.pagina .modificar-persona textarea,
+.pagina .eliminar-persona input,
+.pagina .eliminar-persona select,
+.pagina .auditoria input,
+.pagina .auditoria select,
+.pagina .chatbot-contenedor input {
+  background-color: var(--claro);
+  color: var(--fondo);
+  border-color: var(--acento);
+}
+
+/* Marcadores de posición */
+
+.pagina input::placeholder,
+.pagina textarea::placeholder {
+  color: var(--acento);
+  opacity: 1;
+}
+
+/* Campos seleccionados */
+
+.pagina input:focus,
+.pagina select:focus,
+.pagina textarea:focus {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
+  border-color: var(--acento);
+}
+
+/* Campos deshabilitados */
+
+.pagina input:disabled,
+.pagina select:disabled,
+.pagina textarea:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   6. BOTONES GENERALES
+============================================ */
+
+.pagina button {
+  border-radius: 10px;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.pagina .boton,
+.pagina .boton-secundario {
+  background: var(--acento);
+  color: var(--claro);
+  border: 1px solid var(--borde);
+}
+
+/* Quitar colores azules de todos los formularios */
+
+.pagina .crear-persona button,
+.pagina .modificar-persona button,
+.pagina .eliminar-persona button,
+.pagina .auditoria button,
+.pagina .chatbot-contenedor button {
+  background: var(--acento);
+  background-color: var(--acento);
+  color: var(--claro);
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* Botones al pasar el mouse */
+
+.pagina .boton:hover:not(:disabled),
+.pagina .boton-secundario:hover:not(:disabled),
+.pagina .crear-persona button:hover:not(:disabled),
+.pagina .modificar-persona button:hover:not(:disabled),
+.pagina .eliminar-persona button:hover:not(:disabled),
+.pagina .auditoria button:hover:not(:disabled),
+.pagina .chatbot-contenedor button:hover:not(:disabled) {
+  background: var(--fondo);
+  background-color: var(--fondo);
+  color: var(--claro);
+  border-color: var(--acento);
+}
+
+/* Efecto al hacer clic */
+
+.pagina button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Botones deshabilitados */
+
+.pagina button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   7. PERFIL DEL USUARIO
+============================================ */
+
+.pagina .perfil {
+  color: var(--claro);
+}
+
+.pagina .avatar {
+  background: var(--acento);
+  color: var(--claro);
+}
+
+/* ============================================
+   8. MENÚ PRINCIPAL
+============================================ */
+
+.pagina .menu-sistema {
+  background: var(--fondo);
+  color: var(--claro);
+  border: 1px solid var(--borde);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: var(--sombra);
+}
+
+.pagina .menu-lateral {
+  background: var(--panel);
+  color: var(--claro);
+  border-right: 1px solid var(--borde);
+}
+
+.pagina .menu-lateral h2,
+.pagina .menu-lateral p {
+  color: var(--claro);
+}
+
+/* Opciones normales */
+
+.pagina .menu-opcion {
+  background: transparent;
+  color: var(--claro);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+/* Opciones al pasar el mouse */
+
+.pagina .menu-opcion:hover:not(:disabled) {
+  background: var(--acento);
+  color: var(--claro);
+}
+
+/* Opción seleccionada */
+
+.pagina .menu-opcion.activa,
+.pagina .menu-opcion.activa:hover {
+  background: var(--acento);
+  color: var(--claro);
+  font-weight: 700;
+  border-color: var(--borde);
+}
+
+/* Zona principal del menú */
+
+.pagina .menu-contenido {
+  background: var(--fondo);
+  color: var(--claro);
+}
+
+.pagina .menu-contenido h2,
+.pagina .menu-contenido h3,
+.pagina .menu-contenido > p {
+  color: var(--claro);
+}
+
+/* Etiquetas */
+
+.pagina .menu-etiqueta,
+.pagina .menu-estado {
+  background: var(--acento);
+  color: var(--claro);
+  border-radius: 20px;
+}
+
+/* Bienvenida */
+
+.pagina .menu-bienvenida,
+.pagina .menu-modulo {
+  background: var(--panel);
+  color: var(--claro);
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+}
+
+.pagina .menu-bienvenida h3,
+.pagina .menu-bienvenida p,
+.pagina .menu-modulo h3,
+.pagina .menu-modulo p {
+  color: var(--claro);
+}
+
+/* ============================================
+   9. CREAR PERSONA
+============================================ */
+
+.pagina .crear-persona {
+  background: var(--panel);
+  color: var(--claro);
+}
+
+.pagina .crear-persona button {
+  background-color: var(--acento);
+  color: var(--claro);
+}
+
+/* ============================================
+   10. MODIFICAR PERSONA
+============================================ */
+
+.pagina .modificar-persona {
+  background: var(--panel);
+  color: var(--claro);
+}
+
+/* Corregir botón azul "Buscar persona" */
+
+.pagina .modificar-persona button,
+.pagina .modificar-persona button[type="submit"] {
+  background: var(--acento);
+  background-color: var(--acento);
+  color: var(--claro);
+  border: 1px solid var(--borde);
+}
+
+.pagina .modificar-persona button:hover:not(:disabled) {
+  background: var(--fondo);
+  background-color: var(--fondo);
+  color: var(--claro);
+}
+
+/* ============================================
+   11. ELIMINAR PERSONA
+============================================ */
+
+.pagina .eliminar-persona {
+  background: var(--panel);
+  color: var(--claro);
+}
+
+.pagina .eliminar-resultado {
+  background: var(--fondo);
+  color: var(--claro);
+  border: 1px solid var(--borde);
+}
+
+.pagina .eliminar-resultado h4,
+.pagina .eliminar-datos p {
+  color: var(--claro);
+}
+
+.pagina .eliminar-aviso,
+.pagina .eliminar-advertencia {
+  background: var(--acento);
+  color: var(--claro);
+  border: 1px solid var(--borde);
+}
+
+/* Botón de eliminar */
+
+.pagina .eliminar-confirmar {
+  background: var(--acento);
+  color: var(--claro);
+  border: 2px solid var(--claro);
+  font-weight: 700;
+}
+
+/* ============================================
+   12. AUDITORÍA
+============================================ */
+
+.pagina .auditoria {
+  background: var(--panel);
+  color: var(--claro);
+}
+
+.pagina .auditoria-aviso {
+  background: var(--acento);
+  color: var(--claro);
+}
+
+/* Tabla */
+
+.pagina .auditoria-tabla th {
+  background: var(--fondo);
+  color: var(--claro);
+}
+
+.pagina .auditoria-tabla td {
+  background: var(--panel);
+  color: var(--claro);
+  border-bottom: 1px solid var(--borde);
+}
+
+.pagina .auditoria-tabla tbody tr:hover td {
+  background: var(--acento);
+}
+
+.pagina .auditoria-total {
+  color: var(--claro);
+}
+
+/* Etiquetas de estado */
+
+.pagina .auditoria-estado.exito,
+.pagina .auditoria-estado.error,
+.pagina .auditoria-estado.denegado {
+  background: var(--acento);
+  color: var(--claro);
+  border: 1px solid var(--borde);
+}
+
+/* ============================================
+   13. CHATBOT IA
+============================================ */
+
+.pagina .chatbot-contenedor {
+  background: var(--panel);
+  color: var(--claro);
+}
+
+.pagina .chatbot-cabecera h3,
+.pagina .chatbot-cabecera p {
+  color: var(--claro);
+}
+
+.pagina .chatbot-etiqueta,
+.pagina .chatbot-aviso {
+  background: var(--acento);
+  color: var(--claro);
+}
+
+.pagina .chatbot-conversacion {
+  background: var(--fondo);
+  border: 1px solid var(--borde);
+}
+
+.pagina .chatbot-mensaje.asistente {
+  background: var(--panel);
+  color: var(--claro);
+  border: 1px solid var(--borde);
+}
+
+.pagina .chatbot-mensaje.usuario {
+  background: var(--acento);
+  color: var(--claro);
+}
+
+.pagina .chatbot-formulario input {
+  background: var(--claro);
+  color: var(--fondo);
+}
+
+/* ============================================
+   14. MENSAJES Y AVISOS
+============================================ */
+
+.pagina .aviso,
+.pagina .mensaje,
+.pagina .mensaje--info,
+.pagina .mensaje--success,
+.pagina .mensaje--error,
+.pagina .crear-aviso,
+.pagina .modificar-aviso,
+.pagina .eliminar-mensaje.info,
+.pagina .eliminar-mensaje.exito,
+.pagina .eliminar-mensaje.error {
+  background: var(--acento);
+  color: var(--claro);
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+}
+
+/* ============================================
+   15. RESULTADOS DE CONSULTAS
+============================================ */
+
+.pagina .resultado {
+  background: var(--panel);
+  color: var(--claro);
+}
+
+.pagina .resultado pre {
+  background: var(--fondo);
+  color: var(--claro);
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 16px;
+  overflow-x: auto;
+}
+
+/* ============================================
+   16. PIE DE PÁGINA
+============================================ */
+
+.pagina .pie {
+  background: var(--panel);
+  color: var(--claro);
+  border-top: 1px solid var(--borde);
+}
+
+/* ============================================
+   17. ADAPTACIÓN PARA CELULARES
+============================================ */
+
+@media (max-width: 700px) {
+  .pagina .menu-sistema {
+    border-radius: 12px;
+  }
+
+  .pagina .menu-lateral {
+    border-right: none;
+    border-bottom: 1px solid var(--borde);
+  }
+
+  .pagina .presentacion {
+    border-radius: 12px;
+  }
+
+  .pagina .crear-persona,
+  .pagina .modificar-persona,
+  .pagina .eliminar-persona,
+  .pagina .auditoria,
+  .pagina .chatbot-contenedor {
+    border-radius: 12px;
+  }
+}
+
+
+
+/* ============================================
+   DISEÑO CENTRADO Y MODERNO
+   Gestión de Datos Personales
+============================================ */
+
+/* CONTENEDOR GENERAL */
+
+.pagina {
+  min-height: 100vh;
+  padding: 25px 22px 45px;
+  box-sizing: border-box;
+  background: #2A2438;
+  color: #DBD8E3;
+}
+
+/* CENTRAR LOS BLOQUES PRINCIPALES */
+
+.pagina .cabecera,
+.pagina .presentacion,
+.pagina .contenido,
+.pagina .mensajes-contenedor,
+.pagina .menu-sistema,
+.pagina .pie {
+  width: 100%;
+  max-width: 1150px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
+/* ENCABEZADO */
+
+.pagina .cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 15px;
+  padding: 20px 26px;
+  margin-bottom: 25px;
+  border-radius: 18px;
+  background: #352F44;
+}
+
+/* PRESENTACIÓN CENTRADA */
+
+.pagina .presentacion.presentacion-centrada {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+
+  gap: 22px;
+  padding: 44px 35px;
+  margin-bottom: 32px;
+
+  background: linear-gradient(
+    135deg,
+    #352F44,
+    #2A2438
+  );
+
+  border: 1px solid rgba(219, 216, 227, 0.2);
+  border-radius: 22px;
+}
+
+.pagina .presentacion-texto {
+  max-width: 830px;
+  margin: 0 auto;
+}
+
+.pagina .presentacion-centrada .sobrelinea {
+  color: #DBD8E3;
+  font-size: 12px;
+  letter-spacing: 3px;
+  font-weight: 700;
+  margin-bottom: 15px;
+}
+
+.pagina .presentacion-centrada h1 {
+  color: #DBD8E3;
+  font-size: clamp(28px, 4vw, 47px);
+  line-height: 1.15;
+  margin: 0 0 18px;
+}
+
+.pagina .presentacion-centrada .subtitulo {
+  color: #DBD8E3;
+  opacity: 0.85;
+  font-size: 15px;
+  line-height: 1.7;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.pagina .presentacion-centrada .indicador {
+  position: static;
+  align-self: center;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+
+  padding: 10px 20px;
+  border-radius: 30px;
+  background: #5C5470;
+  color: #DBD8E3;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* CONTENEDOR DEL LOGIN */
+
+.pagina .contenido.contenido-centrado {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+/* TARJETA CENTRADA */
+
+.pagina .panel.panel-acceso {
+  width: 100%;
+  max-width: 540px;
+  flex: 0 1 540px;
+  margin: 0 auto;
+  padding: 35px;
+  box-sizing: border-box;
+
+  background: #352F44;
+  border: 1px solid rgba(219, 216, 227, 0.2);
+  border-radius: 22px;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.2);
+}
+
+/* TÍTULOS DEL LOGIN */
+
+.pagina .acceso-encabezado {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.pagina .acceso-encabezado h2 {
+  color: #DBD8E3;
+  font-size: 25px;
+  margin: 12px 0;
+}
+
+.pagina .acceso-encabezado p {
+  color: #DBD8E3;
+  opacity: 0.8;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ICONO DE ACCESO */
+
+.pagina .acceso-icono {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #5C5470;
+  border-radius: 19px;
+  font-size: 28px;
+}
+
+/* FORMULARIO */
+
+.pagina .formulario-acceso {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.pagina .campo-acceso {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.pagina .campo-acceso label {
+  color: #DBD8E3;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pagina .campo-acceso input {
+  width: 100%;
+  padding: 16px;
+  box-sizing: border-box;
+
+  background: #DBD8E3;
+  color: #2A2438;
+  border: 1px solid #5C5470;
+  border-radius: 12px;
+
+  font-size: 15px;
+}
+
+.pagina .campo-acceso input:focus {
+  border-color: #5C5470;
+  outline: 2px solid #5C5470;
+  outline-offset: 2px;
+}
+
+/* BOTÓN INICIAR SESIÓN */
+
+.pagina .boton.boton-ingresar {
+  width: 100%;
+  padding: 16px;
+  margin-top: 5px;
+
+  background: #5C5470;
+  color: #FFFFFF;
+  border: 1px solid rgba(219, 216, 227, 0.2);
+  border-radius: 12px;
+
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pagina .boton.boton-ingresar:hover:not(:disabled) {
+  background: #2A2438;
+  color: #FFFFFF;
+}
+
+/* PERFIL CUANDO HAY SESIÓN */
+
+.pagina .perfil-centrado {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.pagina .perfil-centrado .boton {
+  width: 100%;
+  margin-top: 15px;
+}
+
+/* MENSAJES CENTRADOS */
+
+.pagina .mensajes-contenedor {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.pagina .mensajes-contenedor .mensaje {
+  width: 100%;
+  max-width: 540px;
+  box-sizing: border-box;
+}
+
+/* MENÚ PRINCIPAL */
+
+.pagina .menu-sistema {
+  margin-top: 30px;
+  margin-bottom: 30px;
+}
+
+/* CONSULTA DENTRO DEL MENÚ */
+
+.pagina .panel-consulta {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* PIE DE PÁGINA */
+
+.pagina .pie {
+  padding: 18px 20px;
+  text-align: center;
+  margin-top: 35px;
+
+  background: #352F44;
+  color: #DBD8E3;
+  border-radius: 15px;
+}
+
+/* ADAPTACIÓN A CELULARES */
+
+@media (max-width: 700px) {
+  .pagina {
+    padding: 15px 12px 30px;
+  }
+
+  .pagina .cabecera {
+    justify-content: center;
+    text-align: center;
+    padding: 18px;
+  }
+
+  .pagina .presentacion.presentacion-centrada {
+    padding: 30px 18px;
+  }
+
+  .pagina .presentacion-centrada h1 {
+    font-size: 29px;
+  }
+
+  .pagina .panel.panel-acceso {
+    padding: 24px 20px;
+  }
+
+  .pagina .pie {
+    font-size: 12px;
+    line-height: 1.6;
+  }
+}

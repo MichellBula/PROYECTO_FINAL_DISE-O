@@ -1,0 +1,141 @@
+
+.eliminar-persona {
+  background: #ffffff;
+  border: 1px solid #dfe5ee;
+  border-radius: 14px;
+  padding: 25px;
+  margin-top: 20px;
+}
+
+.eliminar-persona h3 {
+  color: #172a4a;
+  margin-top: 0;
+}
+
+.eliminar-persona > p {
+  color: #65748b;
+  line-height: 1.6;
+}
+
+.eliminar-aviso {
+  background: #eef3ff;
+  color: #34568b;
+  padding: 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  margin: 20px 0;
+}
+
+.eliminar-buscador {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.eliminar-buscador label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #34445b;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.eliminar-buscador input,
+.eliminar-buscador select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d6dfeb;
+  border-radius: 9px;
+  font-size: 14px;
+}
+
+.eliminar-buscar {
+  align-self: end;
+  background: #3268cc;
+  color: #ffffff;
+  border: none;
+  border-radius: 9px;
+  padding: 13px 20px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.eliminar-resultado {
+  margin-top: 28px;
+  padding: 22px;
+  border: 1px solid #e0e6f0;
+  border-radius: 12px;
+}
+
+.eliminar-resultado h4 {
+  margin-top: 0;
+  font-size: 18px;
+  color: #172a4a;
+}
+
+.eliminar-datos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.eliminar-datos p {
+  margin: 8px 0;
+  color: #3b4b64;
+  overflow-wrap: anywhere;
+}
+
+.eliminar-advertencia {
+  margin: 22px 0;
+  padding: 14px;
+  background: #fff4e5;
+  color: #915d15;
+  border-radius: 9px;
+}
+
+.eliminar-confirmar {
+  background: #c0392b;
+  color: #ffffff;
+  border: none;
+  border-radius: 9px;
+  padding: 13px 20px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.eliminar-confirmar:hover {
+  background: #9f2c20;
+}
+
+.eliminar-mensaje {
+  padding: 14px;
+  border-radius: 9px;
+  margin-top: 20px;
+}
+
+.eliminar-mensaje.info {
+  background: #eaf1ff;
+  color: #31558f;
+}
+
+.eliminar-mensaje.error {
+  background: #fff0f0;
+  color: #a52d2d;
+}
+
+.eliminar-mensaje.exito {
+  background: #e9f7ef;
+  color: #17653d;
+}
+
+@media (max-width: 700px) {
+  .eliminar-buscador,
+  .eliminar-datos {
+    grid-template-columns: 1fr;
+  }
+
+  .eliminar-persona {
+    padding: 16px;
+  }
+}
