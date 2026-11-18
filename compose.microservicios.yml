@@ -1,0 +1,60 @@
+name: gestion_personas_servicios
+
+services:
+
+  autenticacion:
+    container_name: gestion_personas_auth
+
+    build:
+      context: .
+      dockerfile: backend/services/autenticacion/Dockerfile
+
+    restart: unless-stopped
+
+    env_file:
+      - ./backend/services/autenticacion/.env
+
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+
+    volumes:
+      - ./backend/services/autenticacion/.env:/app/backend/services/autenticacion/.env:ro
+
+    ports:
+      - "127.0.0.1:8001:8001"
+
+    networks:
+      - red_postgres
+
+
+  consultar_persona:
+    container_name: gestion_personas_consulta
+
+    build:
+      context: .
+      dockerfile: backend/services/consultar_persona/Dockerfile
+
+    restart: unless-stopped
+
+    env_file:
+      - ./backend/services/consultar_persona/.env
+
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+
+    volumes:
+      - ./backend/services/consultar_persona/.env:/app/backend/services/consultar_persona/.env:ro
+
+    ports:
+      - "127.0.0.1:8000:8000"
+
+    networks:
+      - red_postgres
+
+
+networks:
+  red_postgres:
+    external: true
+    name: postgres_default

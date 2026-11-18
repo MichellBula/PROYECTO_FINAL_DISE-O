@@ -1,0 +1,26 @@
+# Git
+.git
+
+# Entornos virtuales de Python
+**/.venv/
+
+# Archivos temporales de Python
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+
+# Variables privadas
+**/.env
+**/.env.*
+
+# Permitir archivos de ejemplo
+!**/.env.example
+
+# Archivos generados al instalar paquetes
+**/*.egg-info/
+
+# Dependencias del frontend
+**/node_modules/
+
+# Archivos temporales
+*.log
