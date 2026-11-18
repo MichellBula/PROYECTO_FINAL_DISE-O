@@ -1,22 +1,29 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// Todos los llamados del navegador van a /api/... con el mismo origen.
-// Vite redirige en desarrollo sin exponer tokens ni abrir CORS innecesariamente.
+// ==================================================
+// CONFIGURACION DEL SERVIDOR COTESPC
+// ==================================================
+
 export default defineConfig({
   plugins: [react()],
+
   server: {
     host: '127.0.0.1',
     port: 5173,
     strictPort: true,
+
     proxy: {
+      // AUTENTICACION
       '/api/auth': {
-        target: 'http://127.0.0.1:8001',
+        target: 'http://100.109.132.122:8001',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
+
+      // CONSULTA DE PERSONAS
       '/api/personas': {
-        target: 'http://127.0.0.1:8000',
+        target: 'http://100.109.132.122:8000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
