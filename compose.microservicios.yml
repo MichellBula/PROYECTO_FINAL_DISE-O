@@ -2,6 +2,10 @@ name: gestion_personas_servicios
 
 services:
 
+  # ============================================
+  # MICROSERVICIO DE AUTENTICACION
+  # ============================================
+
   autenticacion:
     container_name: gestion_personas_auth
 
@@ -28,6 +32,10 @@ services:
       - red_postgres
 
 
+  # ============================================
+  # MICROSERVICIO DE CONSULTA
+  # ============================================
+
   consultar_persona:
     container_name: gestion_personas_consulta
 
@@ -53,6 +61,40 @@ services:
     networks:
       - red_postgres
 
+
+  # ============================================
+  # MICROSERVICIO DE CREACION DE PERSONAS
+  # ============================================
+
+  crear_persona:
+    container_name: gestion_personas_creacion
+
+    build:
+      context: .
+      dockerfile: backend/services/crear_persona/Dockerfile
+
+    restart: unless-stopped
+
+    env_file:
+      - ./backend/services/crear_persona/.env
+
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+
+    volumes:
+      - ./backend/services/crear_persona/.env:/app/backend/services/crear_persona/.env:ro
+
+    ports:
+      - "127.0.0.1:8002:8002"
+
+    networks:
+      - red_postgres
+
+
+# ============================================
+# RED COMPARTIDA CON POSTGRESQL
+# ============================================
 
 networks:
   red_postgres:
