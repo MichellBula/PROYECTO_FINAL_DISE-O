@@ -1,15 +1,15 @@
 
 import { useEffect, useState } from "react";
-import MenuPrincipal from "./MenuPrincipal.jsx";
+import MenuPrincipal from "./components/MenuPrincipal.jsx";
 
 import {
   cerrarSesion,
   consultarPersona,
   consultarSesion,
   iniciarSesion,
-} from "./api.js";
+} from "./services/api.js";
 
-// Mostrar mensajes del sistema
+// COMPONENTE PARA MOSTRAR MENSAJES
 function Mensaje({ tipo = "info", children }) {
   if (!children) return null;
 
@@ -21,23 +21,41 @@ function Mensaje({ tipo = "info", children }) {
 }
 
 export default function App() {
-  // AUTENTICACIÓN
+
+  // ==========================================
+  // 1. AUTENTICACIÓN
+  // ==========================================
+
   const [sesion, setSesion] = useState(null);
   const [verificando, setVerificando] = useState(true);
+
   const [correo, setCorreo] = useState("");
   const [contrasena, setContrasena] = useState("");
 
-  // CONSULTA DE PERSONAS
+  // ==========================================
+  // 2. CONSULTA DE PERSONAS
+  // ==========================================
+
   const [tipo, setTipo] = useState("Cédula");
   const [numero, setNumero] = useState("");
   const [persona, setPersona] = useState(null);
 
-  // MENSAJES Y CARGA
+  // Mensajes exclusivos para las consultas
+  const [mensajeConsulta, setMensajeConsulta] = useState("");
+  const [tipoMensajeConsulta, setTipoMensajeConsulta] = useState("info");
+
+  // ==========================================
+  // 3. MENSAJES GENERALES Y ESTADOS DE CARGA
+  // ==========================================
+
   const [mensaje, setMensaje] = useState("");
   const [tipoMensaje, setTipoMensaje] = useState("info");
   const [ocupado, setOcupado] = useState(false);
 
-  // COMPROBAR SESIÓN EXISTENTE
+  // ==========================================
+  // 4. COMPROBAR SI EXISTE UNA SESIÓN
+  // ==========================================
+
   useEffect(() => {
     let vigente = true;
 
@@ -63,13 +81,17 @@ export default function App() {
     };
   }, []);
 
-  // INICIAR SESIÓN CON ROBLE
+  // ==========================================
+  // 5. INICIAR SESIÓN CON ROBLE
+  // ==========================================
+
   async function entrar(evento) {
     evento.preventDefault();
 
     setOcupado(true);
     setMensaje("");
     setPersona(null);
+    setMensajeConsulta("");
 
     try {
       const datos = await iniciarSesion(
@@ -82,27 +104,35 @@ export default function App() {
 
       setTipoMensaje("success");
       setMensaje("Sesión iniciada correctamente con Roble.");
+
     } catch (error) {
       setTipoMensaje("error");
       setMensaje(error.message);
+
     } finally {
       setOcupado(false);
     }
   }
 
-  // CONSULTAR PERSONA EN FASTAPI
+  // ==========================================
+  // 6. CONSULTAR PERSONA EN FASTAPI
+  // ==========================================
+
   async function buscar(evento) {
     evento.preventDefault();
 
+    // No permitir consultas sin autenticación
     if (!sesion) {
-      setTipoMensaje("error");
-      setMensaje("Debes iniciar sesión para consultar personas.");
+      setTipoMensajeConsulta("error");
+      setMensajeConsulta(
+        "Debes iniciar sesión para consultar personas."
+      );
       return;
     }
 
     setOcupado(true);
     setPersona(null);
-    setMensaje("");
+    setMensajeConsulta("");
 
     try {
       const datos = await consultarPersona(
@@ -110,34 +140,55 @@ export default function App() {
         numero.trim()
       );
 
+      // Guardar los datos devueltos por FastAPI
       setPersona(datos);
 
-      setTipoMensaje("success");
-      setMensaje(
-        "Consulta realizada correctamente y registrada en auditoría."
+      setTipoMensajeConsulta("success");
+      setMensajeConsulta(
+        "Persona encontrada correctamente."
       );
+
     } catch (error) {
+
+      // La sesión ya no es válida
       if (error.status === 401) {
         setSesion(null);
+        setPersona(null);
+
         setTipoMensaje("error");
         setMensaje(
           "Tu sesión terminó. Vuelve a iniciar sesión."
         );
-      } else if (error.status === 404) {
-        setTipoMensaje("info");
-        setMensaje(
-          "Persona no encontrada. La consulta también queda auditada."
+
+        setTipoMensajeConsulta("error");
+        setMensajeConsulta(
+          "No tienes una sesión activa."
         );
+
+      // La persona no existe
+      } else if (error.status === 404) {
+        setTipoMensajeConsulta("info");
+        setMensajeConsulta(
+          "No se encontró una persona con ese documento."
+        );
+
+      // Otros errores
       } else {
-        setTipoMensaje("error");
-        setMensaje(error.message);
+        setTipoMensajeConsulta("error");
+        setMensajeConsulta(
+          error.message || "No se pudo realizar la consulta."
+        );
       }
+
     } finally {
       setOcupado(false);
     }
   }
 
-  // CERRAR SESIÓN
+  // ==========================================
+  // 7. CERRAR SESIÓN
+  // ==========================================
+
   async function salir() {
     setOcupado(true);
     setMensaje("");
@@ -145,25 +196,38 @@ export default function App() {
     try {
       await cerrarSesion();
 
+      // Eliminar información de la sesión
       setSesion(null);
       setPersona(null);
+
       setNumero("");
+      setTipo("Cédula");
       setCorreo("");
       setContrasena("");
 
+      // Limpiar mensajes anteriores
+      setMensajeConsulta("");
+      setTipoMensajeConsulta("info");
+
       setTipoMensaje("info");
       setMensaje("Sesión cerrada correctamente.");
+
     } catch (error) {
       setTipoMensaje("error");
       setMensaje(error.message);
+
     } finally {
       setOcupado(false);
     }
   }
 
-  // FORMULARIO DE CONSULTA DENTRO DEL MENÚ
+  // ==========================================
+  // 8. FORMULARIO DE CONSULTA
+  // ==========================================
+
   const contenidoConsultar = (
     <section className="panel panel-consulta">
+
       <div className="panel-encabezado">
         <h2>Consultar persona</h2>
 
@@ -174,6 +238,8 @@ export default function App() {
       </div>
 
       <form onSubmit={buscar} className="formulario">
+
+        {/* TIPO DE DOCUMENTO */}
         <label htmlFor="tipo">
           Tipo de documento
         </label>
@@ -184,6 +250,7 @@ export default function App() {
           onChange={(e) => {
             setTipo(e.target.value);
             setPersona(null);
+            setMensajeConsulta("");
           }}
           disabled={!sesion || ocupado}
         >
@@ -196,6 +263,7 @@ export default function App() {
           </option>
         </select>
 
+        {/* NÚMERO DE DOCUMENTO */}
         <label htmlFor="numero">
           Número de documento
         </label>
@@ -210,12 +278,14 @@ export default function App() {
           onChange={(e) => {
             setNumero(e.target.value.replace(/\D/g, ""));
             setPersona(null);
+            setMensajeConsulta("");
           }}
           disabled={!sesion || ocupado}
           required
           placeholder="Entre 1 y 10 dígitos"
         />
 
+        {/* BOTÓN CONSULTAR */}
         <button
           type="submit"
           className="boton"
@@ -225,16 +295,20 @@ export default function App() {
             ? "Consultando…"
             : "Consultar persona"}
         </button>
+
       </form>
 
-      {!sesion && !verificando && (
-        <p className="aviso">
-          Inicia sesión para habilitar la consulta.
-        </p>
-      )}
+      {/* MENSAJE DE RESULTADO DE CONSULTA */}
+      <div className="mensajes-contenedor">
+        <Mensaje tipo={tipoMensajeConsulta}>
+          {mensajeConsulta}
+        </Mensaje>
+      </div>
 
+      {/* DATOS DE LA PERSONA ENCONTRADA */}
       {persona !== null && (
         <div className="panel resultado">
+
           <div className="panel-encabezado">
             <h3>Resultado de la consulta</h3>
             <p>Datos obtenidos mediante FastAPI.</p>
@@ -243,17 +317,23 @@ export default function App() {
           <pre>
             {JSON.stringify(persona, null, 2)}
           </pre>
+
         </div>
       )}
+
     </section>
   );
 
-  // INTERFAZ PRINCIPAL
+  // ==========================================
+  // 9. INTERFAZ PRINCIPAL
+  // ==========================================
+
   return (
     <main className="pagina">
 
       {/* ENCABEZADO */}
       <header className="cabecera">
+
         <span className="marca">
           <span className="marca-icono">GD</span>
           {" "}Gestión de Datos Personales
@@ -262,11 +342,14 @@ export default function App() {
         <span className="etiqueta">
           Roble + FastAPI + PostgreSQL
         </span>
+
       </header>
 
-      {/* PRESENTACIÓN CENTRADA */}
+      {/* PRESENTACIÓN */}
       <section className="presentacion presentacion-centrada">
+
         <div className="presentacion-texto">
+
           <p className="sobrelinea">
             DISEÑO DE SOFTWARE II
           </p>
@@ -280,8 +363,10 @@ export default function App() {
             personal, autenticación con Roble y consultas
             protegidas mediante FastAPI.
           </p>
+
         </div>
 
+        {/* ESTADO DE LA SESIÓN */}
         <div className="indicador">
           {verificando
             ? "Comprobando sesión…"
@@ -289,13 +374,16 @@ export default function App() {
             ? "● Sesión activa"
             : "○ Sesión no iniciada"}
         </div>
+
       </section>
 
-      {/* ACCESO CENTRADO */}
+      {/* PANEL DE AUTENTICACIÓN */}
       <div className="contenido contenido-centrado">
+
         <section className="panel panel-acceso">
 
           <div className="panel-encabezado acceso-encabezado">
+
             <div className="acceso-icono">
               <span aria-hidden="true">🔐</span>
             </div>
@@ -306,13 +394,19 @@ export default function App() {
               Ingresa con tu cuenta de Roble para
               acceder a las funciones del sistema.
             </p>
+
           </div>
 
+          {/* COMPROBANDO SESIÓN */}
           {verificando ? (
+
             <p className="acceso-cargando">
               Comprobando la sesión guardada…
             </p>
+
           ) : sesion ? (
+
+            // USUARIO AUTENTICADO
             <div className="perfil perfil-centrado">
 
               <span className="avatar">
@@ -341,13 +435,19 @@ export default function App() {
               >
                 Cerrar sesión
               </button>
+
             </div>
+
           ) : (
+
+            // FORMULARIO DE INICIO DE SESIÓN
             <form
               onSubmit={entrar}
               className="formulario formulario-acceso"
             >
+
               <div className="campo-acceso">
+
                 <label htmlFor="correo">
                   Correo electrónico
                 </label>
@@ -357,13 +457,17 @@ export default function App() {
                   type="email"
                   autoComplete="username"
                   value={correo}
-                  onChange={(e) => setCorreo(e.target.value)}
+                  onChange={(e) =>
+                    setCorreo(e.target.value)
+                  }
                   required
                   placeholder="usuario@correo.com"
                 />
+
               </div>
 
               <div className="campo-acceso">
+
                 <label htmlFor="contrasena">
                   Contraseña
                 </label>
@@ -379,6 +483,7 @@ export default function App() {
                   required
                   placeholder="Contraseña de Roble"
                 />
+
               </div>
 
               <button
@@ -390,30 +495,38 @@ export default function App() {
                   ? "Verificando…"
                   : "Iniciar sesión"}
               </button>
+
             </form>
           )}
+
         </section>
       </div>
 
-      {/* MENSAJES */}
+      {/* MENSAJES DE AUTENTICACIÓN */}
       <div className="mensajes-contenedor">
         <Mensaje tipo={tipoMensaje}>
           {mensaje}
         </Mensaje>
       </div>
 
-      {/* MENÚ PRINCIPAL */}
-      <MenuPrincipal
-        contenidoConsultar={contenidoConsultar}
-      />
+      {/* MENÚ SOLO PARA USUARIOS AUTENTICADOS */}
+      {!verificando && sesion && (
+        <MenuPrincipal
+          contenidoConsultar={contenidoConsultar}
+        />
+      )}
 
       {/* PIE DE PÁGINA */}
       <footer className="pie">
+
         Sistema de Gestión de Datos Personales
+
         <span>
           {" "}· Entorno de desarrollo · Utiliza datos de prueba
         </span>
+
       </footer>
+
     </main>
   );
 }

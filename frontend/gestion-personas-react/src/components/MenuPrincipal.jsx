@@ -3,11 +3,11 @@ import { useState } from "react";
 import "./menu.css";
 
 // Importar los componentes del sistema
-import CrearPersona from "./CrearPersona.jsx";
-import ModificarPersona from "./ModificarPersona.jsx";
-import EliminarPersona from "./EliminarPersona.jsx";
-import Auditoria from "./Auditoria.jsx";
-import ChatbotIA from "./ChatbotIA.jsx";
+import CrearPersona from "../features/personas/crear/CrearPersona.jsx";
+import ModificarPersona from "../features/personas/modificar/ModificarPersona.jsx";
+import EliminarPersona from "../features/personas/eliminar/EliminarPersona.jsx";
+import Auditoria from "../features/auditoria/Auditoria.jsx";
+import ChatbotIA from "../features/consultas-ia/ChatbotIA.jsx";
 
 // Opciones del menú principal
 const modulos = [
