@@ -5,6 +5,11 @@ import react from '@vitejs/plugin-react';
 // CONFIGURACION DEL SERVIDOR COTESPC
 // ==================================================
 
+// Por defecto utiliza los microservicios locales.
+// En el futuro podemos configurar otra IP mediante
+// la variable de entorno COTESPC_BACKEND_HOST.
+const backendHost = process.env.COTESPC_BACKEND_HOST || '127.0.0.1';
+
 export default defineConfig({
   plugins: [react()],
 
@@ -14,18 +19,32 @@ export default defineConfig({
     strictPort: true,
 
     proxy: {
-      // AUTENTICACION
+      // ============================================
+      // MICROSERVICIO DE AUTENTICACION - PUERTO 8001
+      // ============================================
       '/api/auth': {
-        target: 'http://100.109.132.122:8001',
+        target: `http://${backendHost}:8001`,
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
 
-      // CONSULTA DE PERSONAS
+      // ============================================
+      // MICROSERVICIO DE CONSULTA - PUERTO 8000
+      // ============================================
       '/api/personas': {
-        target: 'http://100.109.132.122:8000',
+        target: `http://${backendHost}:8000`,
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+
+      // ============================================
+      // MICROSERVICIO DE CREACION - PUERTO 8002
+      // ============================================
+      '/api/crear-persona': {
+        target: `http://${backendHost}:8002`,
+        changeOrigin: true,
+        rewrite: (path) =>
+          path.replace(/^\/api\/crear-persona/, ''),
       },
     },
   },
