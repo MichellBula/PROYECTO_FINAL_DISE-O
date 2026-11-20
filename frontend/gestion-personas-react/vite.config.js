@@ -1,60 +1,66 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // ==================================================
 // CONFIGURACION DEL SERVIDOR COTESPC
 // ==================================================
 
-// Por defecto utiliza los microservicios locales.
-// En el futuro podemos configurar otra IP mediante
-// la variable de entorno COTESPC_BACKEND_HOST.
-const backendHost = process.env.COTESPC_BACKEND_HOST || '127.0.0.1';
+export default defineConfig(({ mode }) => {
 
-export default defineConfig({
-  plugins: [react()],
+  // Cargar las variables de entorno del proyecto
+  const env = loadEnv(mode, process.cwd(), 'COTESPC_');
 
-  server: {
-    host: '127.0.0.1',
-    port: 5173,
-    strictPort: true,
+  // Dirección del servidor backend
+  const backendHost = env.COTESPC_BACKEND_HOST || '127.0.0.1';
 
-    proxy: {
-      // ============================================
-      // MICROSERVICIO DE AUTENTICACION - PUERTO 8001
-      // ============================================
-      '/api/auth': {
-        target: `http://${backendHost}:8001`,
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-      },
+  console.log(`[Vite] Servidor backend: ${backendHost}`);
 
-      // ============================================
-      // MICROSERVICIO DE CONSULTA - PUERTO 8000
-      // ============================================
-      '/api/personas': {
-        target: `http://${backendHost}:8000`,
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-      },
+  return {
+    plugins: [react()],
 
-      // ============================================
-      // MICROSERVICIO DE CREACION - PUERTO 8002
-      // ============================================
-      '/api/crear-persona': {
-        target: `http://${backendHost}:8002`,
-        changeOrigin: true,
-        rewrite: (path) =>
-          path.replace(/^\/api\/crear-persona/, ''),
-      },
+    server: {
+      host: '127.0.0.1',
+      port: 5173,
+      strictPort: true,
 
-      // ============================================
-      // MICROSERVICIO DE MODIFICACION - PUERTO 8003
-      // ============================================
-      '/api/modificar-persona': {
-        target: `http://${backendHost}:8003`,
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
+      proxy: {
+        // ============================================
+        // AUTENTICACION - PUERTO 8001
+        // ============================================
+        '/api/auth': {
+          target: `http://${backendHost}:8001`,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ''),
+        },
+
+        // ============================================
+        // CONSULTAR PERSONA - PUERTO 8000
+        // ============================================
+        '/api/personas': {
+          target: `http://${backendHost}:8000`,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ''),
+        },
+
+        // ============================================
+        // CREAR PERSONA - PUERTO 8002
+        // ============================================
+        '/api/crear-persona': {
+          target: `http://${backendHost}:8002`,
+          changeOrigin: true,
+          rewrite: (path) =>
+            path.replace(/^\/api\/crear-persona/, ''),
+        },
+
+        // ============================================
+        // MODIFICAR PERSONA - PUERTO 8003
+        // ============================================
+        '/api/modificar-persona': {
+          target: `http://${backendHost}:8003`,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ''),
+        },
       },
     },
-  },
+  };
 });
