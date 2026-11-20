@@ -110,10 +110,7 @@ async def modificar_persona_endpoint(
     # 3. Guardar en Base de Datos
     try:
         persona_actualizada = modificar_persona_db(
-            datos=datos_validados,
-            numero_documento=numero_documento,
-            usuario=usuario_id,
-            nombre_foto=nombre_foto # Si es None, no se actualiza la foto
+	    datos=datos_validados, numero_documento=numero_documento,usuario=usuario_id, foto_ruta=nombre_foto
         )
 
         if not persona_actualizada:

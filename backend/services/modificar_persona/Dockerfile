@@ -30,4 +30,4 @@ COPY backend/services/modificar_persona/ /app/backend/services/modificar_persona
 EXPOSE 8003
 
 # Ejecutar FastAPI
-CMD ["python", "-m", "uvicorn", "main:app", "--app-dir", "/app/backend/services/modificar_persona", "--host", "0.0.0.0", "--port", "8002"]
+CMD ["python", "-m", "uvicorn", "main:app", "--app-dir", "/app/backend/services/modificar_persona", "--host", "0.0.0.0", "--port", "8003"]

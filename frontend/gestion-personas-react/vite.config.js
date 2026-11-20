@@ -51,7 +51,7 @@ export default defineConfig({
         target: `http://${backendHost}:8003`,
         changeOrigin: true,
         rewrite: (path) =>
-          path.replace(/^\/api\/modificar-persona/, ''),
+          path.replace(/^\/api/, ''),
       },
     },
   },
