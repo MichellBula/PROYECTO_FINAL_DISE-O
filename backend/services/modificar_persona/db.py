@@ -53,14 +53,14 @@ def registrar_auditoria(
 
 
 # 3. MODIFICAR PERSONA
-def modificar_persona_db(datos, numero_documento, usuario, foto_ruta=None):
+def modificar_persona_db(datos, tipo_doc_original, numero_documento, usuario, nombre_foto=None):
     with conexion() as conn:
         with conn.cursor() as cur:
             
-            # Armamos la consulta dinamicamente por si la foto es opcional
+            # El UPDATE ahora puede cambiar el tipo_documento
             query = """
                 UPDATE public.persona
-                SET tipo_documento = %s,
+                SET tipo_documento = %s, -- Aquí se guarda el nuevo (Cédula)
                     primer_nombre = %s,
                     segundo_nombre = %s,
                     apellidos = %s,
@@ -70,33 +70,28 @@ def modificar_persona_db(datos, numero_documento, usuario, foto_ruta=None):
                     celular = %s
             """
             params = [
-                datos.tipo_documento, datos.primer_nombre, datos.segundo_nombre,
-                datos.apellidos, datos.fecha_nacimiento, datos.genero,
-                datos.correo, datos.celular
+                datos.tipo_documento, 
+                datos.primer_nombre, datos.segundo_nombre, datos.apellidos,
+                datos.fecha_nacimiento, datos.genero, datos.correo, datos.celular,
             ]
 
-            # Si el usuario subió una foto nueva, la actualizamos
-            if foto_ruta:
+            if nombre_foto:
                 query += ", foto_ruta = %s"
-                params.append(foto_ruta)
+                params.append(nombre_foto)
 
-            query += " WHERE numero_documento = %s RETURNING *"
-            params.append(numero_documento)
+            # BUSCAMOS POR LOS DOS CAMPOS ORIGINALES PARA NO EQUIVOCARNOS
+            query += " WHERE tipo_documento = %s AND numero_documento = %s RETURNING *"
+            params.extend([tipo_doc_original, numero_documento])
 
             cur.execute(query, tuple(params))
             persona = cur.fetchone()
 
-        # Si no encontró a nadie, la persona no existe
-        if not persona:
-            return None
+            if not persona:
+                return None
 
-        # Registrar la operación exitosa
         registrar_auditoria(
-            conn=conn,
-            usuario=usuario,
-            tipo_documento=datos.tipo_documento,
-            numero_documento=numero_documento,
-            resultado="EXITO",
-            detalle="Persona modificada correctamente",
+            conn=conn, usuario=usuario, tipo_documento=datos.tipo_documento,
+            numero_documento=numero_documento, resultado="EXITO",
+            detalle=f"Persona modificada de {tipo_doc_original} a {datos.tipo_documento}",
         )
     return persona

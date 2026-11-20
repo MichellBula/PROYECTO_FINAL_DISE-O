@@ -53,8 +53,9 @@ def salud():
         )
 
 # 3. MODIFICAR PERSONA
-@app.put("/modificar-persona/personas/{numero_documento}")
+@app.put("/modificar-persona/personas/{tipo_doc_original}/{numero_documento}")
 async def modificar_persona_endpoint(
+    tipo_doc_original: str, # <-- NUEVO PARÁMETRO
     numero_documento: str,
     tipo_documento: str = Form(...),
     primer_nombre: str = Form(...),
@@ -110,7 +111,7 @@ async def modificar_persona_endpoint(
     # 3. Guardar en Base de Datos
     try:
         persona_actualizada = modificar_persona_db(
-	    datos=datos_validados, numero_documento=numero_documento,usuario=usuario_id, foto_ruta=nombre_foto
+	    datos=datos_validados, tipo_doc_original=tipo_doc_original, numero_documento=numero_documento,usuario=usuario_id, foto_ruta=nombre_foto
         )
 
         if not persona_actualizada:

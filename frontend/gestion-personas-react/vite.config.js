@@ -5,6 +5,9 @@ import react from '@vitejs/plugin-react';
 // CONFIGURACION DEL SERVIDOR COTESPC
 // ==================================================
 
+// Por defecto utiliza los microservicios locales.
+// En el futuro podemos configurar otra IP mediante
+// la variable de entorno COTESPC_BACKEND_HOST.
 const backendHost = process.env.COTESPC_BACKEND_HOST || '127.0.0.1';
 
 export default defineConfig({
@@ -45,13 +48,12 @@ export default defineConfig({
       },
 
       // ============================================
-      // MICROSERVICIO DE MODIFICACION - PUERTO 8003 (TU NUEVO SERVICIO)
+      // MICROSERVICIO DE MODIFICACION - PUERTO 8003
       // ============================================
       '/api/modificar-persona': {
         target: `http://${backendHost}:8003`,
         changeOrigin: true,
-        rewrite: (path) =>
-          path.replace(/^\/api/, ''),
+        rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
   },
