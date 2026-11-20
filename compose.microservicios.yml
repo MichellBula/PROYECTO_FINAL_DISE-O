@@ -91,6 +91,37 @@ services:
     networks:
       - red_postgres
 
+  # ============================================
+  # MICROSERVICIO DE MODIFICACION DE PERSONAS
+  # ============================================
+
+  modificar_persona:
+    container_name: gestion_personas_modificacion
+
+    build:
+      context: .
+      dockerfile: backend/services/modificar_persona/Dockerfile
+
+    restart: unless-stopped
+
+    env_file:
+      - ./backend/services/modificar_persona/.env
+
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+
+    volumes:
+      - ./backend/services/modificar_persona/.env:/app/backend/services/modificar_persona/.env:ro
+      # OPCIONAL: Volumen para guardar las fotos y que no se borren al reiniciar
+      - ./uploads:/app/uploads
+
+    ports:
+      - "127.0.0.1:8003:8003"
+
+    networks:
+      - red_postgres
+
 
 # ============================================
 # RED COMPARTIDA CON POSTGRESQL
