@@ -24,20 +24,20 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
 
       proxy: {
-        // ============================================
-        // AUTENTICACION - PUERTO 8001
-        // ============================================
-        '/api/auth': {
-          target: `http://${backendHost}:8001`,
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, ''),
-        },
 
         // ============================================
         // CONSULTAR PERSONA - PUERTO 8000
         // ============================================
         '/api/personas': {
           target: `http://${backendHost}:8000`,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ''),
+        },
+        // ============================================
+        // AUTENTICACION - PUERTO 8001
+        // ============================================
+        '/api/auth': {
+          target: `http://${backendHost}:8001`,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
         },
@@ -51,12 +51,20 @@ export default defineConfig(({ mode }) => {
           rewrite: (path) =>
             path.replace(/^\/api\/crear-persona/, ''),
         },
-
+        
         // ============================================
         // MODIFICAR PERSONA - PUERTO 8003
         // ============================================
         '/api/modificar-persona': {
           target: `http://${backendHost}:8003`,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ''),
+        },
+        // ============================================
+        // AUDITORÍA - PUERTO 8004
+        // ============================================
+        '/api/auditoria': {
+          target: `http://${backendHost}:8004`,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
         },
