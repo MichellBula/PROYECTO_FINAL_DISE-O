@@ -122,7 +122,35 @@ services:
     networks:
       - red_postgres
 
+  # ============================================
+  # MICROSERVICIO DE AUDITORÍA
+  # ============================================
 
+  auditoria:
+    container_name: gestion_personas_auditoria
+
+    build:
+      context: .
+      dockerfile: backend/services/auditoria/Dockerfile
+
+    restart: unless-stopped
+
+    env_file:
+      - ./backend/services/auditoria/.env
+
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+
+    volumes:
+      - ./backend/services/auditoria/.env:/app/backend/services/auditoria/.env:ro
+
+    ports:
+      - "127.0.0.1:8004:8004"
+
+    networks:
+      - red_postgres
+      
 # ============================================
 # RED COMPARTIDA CON POSTGRESQL
 # ============================================
