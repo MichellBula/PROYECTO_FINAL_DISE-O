@@ -1,27 +1,22 @@
 
 import { useState } from "react";
-import "./EliminarPersona.css";
+import {
+  consultarPersona,
+  eliminarPersona as eliminarPersonaAPI,
+} from "../../../services/api";
 
-// Persona ficticia para las pruebas de la interfaz.
-const personaEjemplo = {
-  tipo_documento: "Cédula",
-  numero_documento: "1234567890",
-  primer_nombre: "Lucía",
-  segundo_nombre: "María",
-  apellidos: "Ejemplo Prueba",
-  correo: "lucia@example.com",
-  celular: "3001234567",
-};
+import "./EliminarPersona.css";
 
 export default function EliminarPersona() {
   const [tipoDocumento, setTipoDocumento] = useState("Cédula");
   const [numeroDocumento, setNumeroDocumento] = useState("");
   const [persona, setPersona] = useState(null);
-  const [eliminada, setEliminada] = useState(false);
   const [mensaje, setMensaje] = useState("");
   const [tipoMensaje, setTipoMensaje] = useState("info");
+  const [cargando, setCargando] = useState(false);
 
-  function buscarPersona(evento) {
+  // 1. BUSCAR PERSONA EN POSTGRESQL
+  async function buscarPersona(evento) {
     evento.preventDefault();
 
     setPersona(null);
@@ -33,39 +28,69 @@ export default function EliminarPersona() {
       return;
     }
 
-    if (
-      !eliminada &&
-      tipoDocumento === personaEjemplo.tipo_documento &&
-      numeroDocumento === personaEjemplo.numero_documento
-    ) {
-      setPersona({ ...personaEjemplo });
+    setCargando(true);
+
+    try {
+      const datos = await consultarPersona(
+        tipoDocumento,
+        numeroDocumento
+      );
+
+      const personaEncontrada = datos.persona || datos;
+
+      if (
+        personaEncontrada.tipo_documento !== tipoDocumento ||
+        String(personaEncontrada.numero_documento) !== numeroDocumento
+      ) {
+        throw new Error(
+          "Los datos encontrados no coinciden con la búsqueda."
+        );
+      }
+
+      setPersona(personaEncontrada);
       setTipoMensaje("info");
-      setMensaje("Persona ficticia encontrada.");
-    } else {
+      setMensaje("Persona encontrada correctamente.");
+
+    } catch (error) {
       setTipoMensaje("error");
-      setMensaje("No se encontró la persona en los datos de prueba.");
+      setMensaje(error.message || "No se pudo buscar la persona.");
+    } finally {
+      setCargando(false);
     }
   }
 
-  function eliminarPersona() {
-    if (!persona) return;
+  // 2. ELIMINAR PERSONA DE POSTGRESQL
+  async function eliminarPersona() {
+    if (!persona || cargando) return;
 
     const confirmar = window.confirm(
       `¿Estás segura de eliminar a ${persona.primer_nombre} ` +
       `${persona.apellidos}?\n\n` +
-      "Esto es solo una simulación. No se modificará PostgreSQL."
+      "Esta acción eliminará permanentemente el registro de PostgreSQL."
     );
 
     if (!confirmar) return;
 
-    // Únicamente cambia el estado local de React.
-    setPersona(null);
-    setEliminada(true);
-    setTipoMensaje("exito");
-    setMensaje(
-      "Simulación completada. La persona fue retirada " +
-      "de esta vista, pero NO se eliminó de PostgreSQL."
-    );
+    setCargando(true);
+    setMensaje("");
+
+    try {
+      await eliminarPersonaAPI(
+        persona.tipo_documento,
+        persona.numero_documento
+      );
+
+      setPersona(null);
+      setNumeroDocumento("");
+      setTipoMensaje("exito");
+      setMensaje("Persona eliminada correctamente de PostgreSQL.");
+
+    } catch (error) {
+      setTipoMensaje("error");
+      setMensaje(error.message || "No se pudo eliminar la persona.");
+    } finally {
+      setCargando(false);
+    }
   }
 
   return (
@@ -78,9 +103,8 @@ export default function EliminarPersona() {
       </p>
 
       <div className="eliminar-aviso">
-         Modo de prueba: utiliza la cédula
-        <strong> 1234567890</strong>.
-        No se eliminarán datos reales.
+        La eliminación es permanente. Verifica cuidadosamente
+        la información antes de continuar.
       </div>
 
       <form
@@ -91,6 +115,7 @@ export default function EliminarPersona() {
           Tipo de documento
           <select
             value={tipoDocumento}
+            disabled={cargando}
             onChange={(evento) => {
               setTipoDocumento(evento.target.value);
               setPersona(null);
@@ -112,6 +137,7 @@ export default function EliminarPersona() {
             pattern="[0-9]{1,10}"
             maxLength={10}
             value={numeroDocumento}
+            disabled={cargando}
             onChange={(evento) => {
               setNumeroDocumento(
                 evento.target.value.replace(/\D/g, "")
@@ -119,13 +145,17 @@ export default function EliminarPersona() {
               setPersona(null);
               setMensaje("");
             }}
-            placeholder="Ej. 1234567890"
+            placeholder="Ingrese el documento"
             required
           />
         </label>
 
-        <button type="submit" className="eliminar-buscar">
-          Buscar persona
+        <button
+          type="submit"
+          className="eliminar-buscar"
+          disabled={cargando}
+        >
+          {cargando ? "Procesando..." : "Buscar persona"}
         </button>
       </form>
 
@@ -157,26 +187,27 @@ export default function EliminarPersona() {
 
             <p>
               <strong>Correo:</strong>{" "}
-              {persona.correo}
+              {persona.correo || "No registrado"}
             </p>
 
             <p>
               <strong>Celular:</strong>{" "}
-              {persona.celular}
+              {persona.celular || "No registrado"}
             </p>
           </div>
 
           <div className="eliminar-advertencia">
-            ⚠️ Revisa cuidadosamente la información
-            antes de continuar.
+            Esta acción eliminará permanentemente la persona
+            de la base de datos.
           </div>
 
           <button
             type="button"
             className="eliminar-confirmar"
             onClick={eliminarPersona}
+            disabled={cargando}
           >
-            Solicitar eliminación
+            {cargando ? "Eliminando..." : "Eliminar persona"}
           </button>
         </div>
       )}

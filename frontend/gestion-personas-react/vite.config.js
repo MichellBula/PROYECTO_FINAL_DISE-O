@@ -68,6 +68,14 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
         },
+        // ============================================
+        // ELIMINAR PERSONA - PUERTO 8005
+        // ============================================
+        '/api/eliminar-persona': {
+          target: `http://${backendHost}:8005`,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ''),
+        },
       },
     },
   };

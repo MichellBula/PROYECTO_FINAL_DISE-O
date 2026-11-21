@@ -150,6 +150,38 @@ services:
 
     networks:
       - red_postgres
+
+
+
+  # ============================================
+  # MICROSERVICIO DE ELIMINACION DE PERSONAS
+  # ============================================
+
+  eliminar_persona:
+    container_name: gestion_personas_eliminacion
+
+    build:
+      context: .
+      dockerfile: backend/services/eliminar_persona/Dockerfile
+
+    restart: unless-stopped
+
+    env_file:
+      - ./backend/services/eliminar_persona/.env
+
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+
+    volumes:
+      - ./backend/services/eliminar_persona/.env:/app/backend/services/eliminar_persona/.env:ro
+
+    ports:
+      - "127.0.0.1:8005:8005"
+
+    networks:
+      - red_postgres
+
       
 # ============================================
 # RED COMPARTIDA CON POSTGRESQL

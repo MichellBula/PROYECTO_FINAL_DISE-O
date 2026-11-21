@@ -55,3 +55,13 @@ export async function cerrarSesion() {
 export function consultarPersona(tipoDocumento, numeroDocumento) {
   return solicitar(`/personas/${encodeURIComponent(tipoDocumento)}/${encodeURIComponent(numeroDocumento)}`);
 }
+
+
+export function eliminarPersona(tipoDocumento, numeroDocumento) {
+  return solicitar(
+    `/eliminar-persona/personas/${encodeURIComponent(tipoDocumento)}/${encodeURIComponent(numeroDocumento)}`,
+    {
+      method: 'DELETE',
+    }
+  );
+}
