@@ -39,7 +39,8 @@ export default function ModificarPersona() {
     }
 
     try {
-      const respuesta = await fetch(`/api/personas/${numeroDocumento}`, {
+      const tipoParam = encodeURIComponent(tipoDocumento); 
+      const respuesta = await fetch(`/api/personas/${tipoParam}/${numeroDocumento}`, {
         method: "GET",
         credentials: "include",
         headers: {
@@ -162,8 +163,18 @@ export default function ModificarPersona() {
     setCargando(true);
 
     try {
-      // ¡ATENCIÓN AQUÍ! La URL incluye el tipo original y el número documento
-      const url = `/api/modificar-persona/personas/${tipoDocOriginal}/${numeroDocumento}`;
+      // 👇 AGREGA ESTOS CONSOLE.LOG AQUÍ 👇
+      console.log("=== DATOS PARA GUARDAR ===");
+      console.log("Tipo Original:", tipoDocOriginal);
+      console.log("Número Documento:", numeroDocumento);
+      console.log("Nuevo Tipo:", nuevoTipo);
+
+
+      // Codificamos el tipo original para que los espacios y tildes viajen seguros en la URL
+      const tipoOriginalParam = encodeURIComponent(tipoDocOriginal);
+      const url = `/api/modificar-persona/personas/${tipoOriginalParam}/${numeroDocumento}`;
+
+      console.log("URL final a enviar:", url);
 
       const respuesta = await fetch(url, {
         method: "PUT",
@@ -200,7 +211,7 @@ export default function ModificarPersona() {
 
       // MODIFICACIÓN EXITOSA
       setError(false);
-      setMensaje("✅ Persona modificada correctamente en PostgreSQL.");
+      setMensaje("Persona modificada correctamente en PostgreSQL.");
       
       // Actualizamos el tipo original por si vuelve a guardar en la misma sesión
       setTipoDocOriginal(nuevoTipo);
@@ -254,7 +265,7 @@ export default function ModificarPersona() {
                 setPersona(null);
                 setMensaje("");
               }}
-              placeholder="Ej. 1042245985"
+              placeholder="Ej. 1234567890"
               required
             />
           </label>

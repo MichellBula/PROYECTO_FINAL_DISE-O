@@ -2,6 +2,7 @@ import logging
 import os
 import shutil
 import psycopg 
+from urllib.parse import unquote
 from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
@@ -68,6 +69,8 @@ async def modificar_persona_endpoint(
     foto: Optional[UploadFile] = File(None),
     usuario: dict = Depends(usuario_autenticado)
 ):
+    tipo_doc_original = unquote(tipo_doc_original)
+    
     usuario_id = f"roble:{usuario['user_id']}"
 
     # 1. Validar datos con Pydantic
@@ -111,7 +114,7 @@ async def modificar_persona_endpoint(
     # 3. Guardar en Base de Datos
     try:
         persona_actualizada = modificar_persona_db(
-	    datos=datos_validados, tipo_doc_original=tipo_doc_original, numero_documento=numero_documento,usuario=usuario_id, foto_ruta=nombre_foto
+	    datos=datos_validados, tipo_doc_original=tipo_doc_original, numero_documento=numero_documento,usuario=usuario_id, nombre_foto=nombre_foto
         )
 
         if not persona_actualizada:

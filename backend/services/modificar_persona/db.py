@@ -60,7 +60,7 @@ def modificar_persona_db(datos, tipo_doc_original, numero_documento, usuario, no
             # El UPDATE ahora puede cambiar el tipo_documento
             query = """
                 UPDATE public.persona
-                SET tipo_documento = %s, -- Aquí se guarda el nuevo (Cédula)
+                SET tipo_documento = %s,
                     primer_nombre = %s,
                     segundo_nombre = %s,
                     apellidos = %s,
@@ -79,9 +79,9 @@ def modificar_persona_db(datos, tipo_doc_original, numero_documento, usuario, no
                 query += ", foto_ruta = %s"
                 params.append(nombre_foto)
 
-            # BUSCAMOS POR LOS DOS CAMPOS ORIGINALES PARA NO EQUIVOCARNOS
-            query += " WHERE tipo_documento = %s AND numero_documento = %s RETURNING *"
-            params.extend([tipo_doc_original, numero_documento])
+            # BUSCAMOS SOLO POR EL NÚMERO DE DOCUMENTO PARA EVITAR PROBLEMAS CON TILDES
+            query += " WHERE numero_documento = %s RETURNING *"
+            params.append(numero_documento)
 
             cur.execute(query, tuple(params))
             persona = cur.fetchone()
@@ -89,6 +89,7 @@ def modificar_persona_db(datos, tipo_doc_original, numero_documento, usuario, no
             if not persona:
                 return None
 
+        # Registrar la operación exitosa
         registrar_auditoria(
             conn=conn, usuario=usuario, tipo_documento=datos.tipo_documento,
             numero_documento=numero_documento, resultado="EXITO",
