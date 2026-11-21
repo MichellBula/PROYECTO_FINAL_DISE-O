@@ -62,9 +62,25 @@ export default function ModificarPersona() {
       }
 
       // Si la respuesta es exitosa, llenamos el formulario
-      setPersona(resultado);
-      setTipoDocOriginal(resultado.tipo_documento); // <-- Guardamos el original
-      setError(false);
+      const personaEncontrada = resultado?.persona ?? resultado;
+
+      if (
+        !personaEncontrada?.tipo_documento ||
+        !personaEncontrada?.numero_documento
+      ) {
+        throw new Error(
+          "El microservicio de consulta devolvió datos incompletos."
+        );
+      }
+
+      setPersona(personaEncontrada);
+
+      setTipoDocOriginal(personaEncontrada.tipo_documento);
+
+      setNumeroDocumento(
+        String(personaEncontrada.numero_documento)
+      );
+      
       setMensaje("Persona encontrada. Puedes editar sus datos.");
 
     } catch (error) {
@@ -191,8 +207,14 @@ export default function ModificarPersona() {
           throw new Error("Tu sesión no es válida o ha expirado. Inicia sesión nuevamente.");
         }
         if (respuesta.status === 404) {
-          throw new Error("La persona no fue encontrada en la base de datos.");
-        }
+          throw new Error(
+              `Error HTTP 404: ${
+                typeof resultado?.detail === "string"
+                  ? resultado.detail
+                  : "No se encontró la ruta o el registro solicitado."
+              }`
+            );        
+          }
         if (respuesta.status === 422) {
           const detalle = resultado?.detail;
           const descripcion = Array.isArray(detalle)
