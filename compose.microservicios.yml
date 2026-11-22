@@ -1,3 +1,4 @@
+
 name: gestion_personas_servicios
 
 services:
@@ -91,6 +92,7 @@ services:
     networks:
       - red_postgres
 
+
   # ============================================
   # MICROSERVICIO DE MODIFICACION DE PERSONAS
   # ============================================
@@ -113,7 +115,7 @@ services:
 
     volumes:
       - ./backend/services/modificar_persona/.env:/app/backend/services/modificar_persona/.env:ro
-      # OPCIONAL: Volumen para guardar las fotos y que no se borren al reiniciar
+      # Volumen para conservar las fotografias
       - ./uploads:/app/uploads
 
     ports:
@@ -122,8 +124,9 @@ services:
     networks:
       - red_postgres
 
+
   # ============================================
-  # MICROSERVICIO DE AUDITORÍA
+  # MICROSERVICIO DE AUDITORIA
   # ============================================
 
   auditoria:
@@ -150,7 +153,6 @@ services:
 
     networks:
       - red_postgres
-
 
 
   # ============================================
@@ -182,7 +184,41 @@ services:
     networks:
       - red_postgres
 
-      
+
+  # ============================================
+  # API GATEWAY
+  # ============================================
+
+  gateway:
+    container_name: gestion_personas_gateway
+
+    build:
+      context: .
+      dockerfile: backend/gateway/Dockerfile
+
+    restart: unless-stopped
+
+    env_file:
+      - ./backend/gateway/.env
+
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+
+      AUTH_URL: http://autenticacion:8001
+      CONSULTAR_URL: http://consultar_persona:8000
+      CREAR_URL: http://crear_persona:8002
+      MODIFICAR_URL: http://modificar_persona:8003
+      ELIMINAR_URL: http://eliminar_persona:8005
+      AUDITORIA_URL: http://auditoria:8004
+
+    ports:
+      - "127.0.0.1:8006:8006"
+
+    networks:
+      - red_postgres
+
+
 # ============================================
 # RED COMPARTIDA CON POSTGRESQL
 # ============================================
