@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import "./CrearPersona.css";
 
@@ -28,7 +29,6 @@ export default function CrearPersona() {
     const obtener = (campo) =>
       String(formData.get(campo) ?? "").trim();
 
-    // Obtener los datos del formulario
     const tipoDocumento = obtener("tipo_documento");
     const documento = obtener("numero_documento");
     const primerNombre = obtener("primer_nombre");
@@ -45,6 +45,14 @@ export default function CrearPersona() {
     // ==================================================
     // VALIDACIONES
     // ==================================================
+
+    if (
+      !["Cédula", "Tarjeta de identidad"].includes(tipoDocumento)
+    ) {
+      setError(true);
+      setMensaje("Selecciona un tipo de documento válido.");
+      return;
+    }
 
     if (!/^[0-9]{1,10}$/.test(documento)) {
       setError(true);
@@ -97,6 +105,25 @@ export default function CrearPersona() {
       return;
     }
 
+    if (
+      ![
+        "Femenino",
+        "Masculino",
+        "No binario",
+        "Prefiero no reportar",
+      ].includes(genero)
+    ) {
+      setError(true);
+      setMensaje("Selecciona un género válido.");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
+      setError(true);
+      setMensaje("Introduce un correo electrónico válido.");
+      return;
+    }
+
     // ==================================================
     // PREPARAR DATOS PARA FASTAPI
     // ==================================================
@@ -114,38 +141,63 @@ export default function CrearPersona() {
     };
 
     // ==================================================
-    // ENVIAR DATOS AL MICROSERVICIO
+    // ENVIAR DATOS A LA API GATEWAY
     // ==================================================
 
     setGuardando(true);
 
     try {
-      const respuesta = await fetch(
-        "/api/crear-persona/personas",
-        {
-          method: "POST",
+      // 1. Obtener la sesión actual y su token CSRF.
+      const respuestaSesion = await fetch("/api/auth/yo", {
+        method: "GET",
+        credentials: "include",
+      });
 
-          // Enviar la sesión del usuario autenticado
-          credentials: "include",
+      if (!respuestaSesion.ok) {
+        throw new Error(
+          "Tu sesión no es válida o ha expirado. Inicia sesión nuevamente."
+        );
+      }
 
-          headers: {
-            "Content-Type": "application/json",
-          },
+      const datosSesion = await respuestaSesion.json();
 
-          body: JSON.stringify(datosPersona),
-        }
-      );
+      if (!datosSesion.csrf_token) {
+        throw new Error(
+          "No se pudo obtener el token de seguridad de la sesión."
+        );
+      }
 
-      const resultado = await respuesta.json().catch(() => null);
+      // 2. Registrar la persona a través de la Gateway.
+      const respuesta = await fetch("/api/personas", {
+        method: "POST",
+        credentials: "include",
+
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": datosSesion.csrf_token,
+        },
+
+        body: JSON.stringify(datosPersona),
+      });
+
+      const resultado = await respuesta
+        .json()
+        .catch(() => null);
 
       // ==================================================
       // MANEJAR ERRORES DEL BACKEND
       // ==================================================
 
       if (!respuesta.ok) {
-        if (respuesta.status === 401 || respuesta.status === 403) {
+        if (respuesta.status === 401) {
           throw new Error(
-            "Tu sesión no es válida o ha expirado. Inicia sesión nuevamente."
+            "Tu sesión ha expirado. Inicia sesión nuevamente."
+          );
+        }
+
+        if (respuesta.status === 403) {
+          throw new Error(
+            "La operación fue rechazada por seguridad. Verifica tu sesión y tus permisos."
           );
         }
 
@@ -169,7 +221,7 @@ export default function CrearPersona() {
 
         if (respuesta.status === 503) {
           throw new Error(
-            "El microservicio no pudo completar el registro. Revisa su conexión con PostgreSQL y la auditoría."
+            "El servicio no está disponible temporalmente. Comprueba la conexión con el servidor."
           );
         }
 
@@ -190,9 +242,6 @@ export default function CrearPersona() {
         "✅ Persona registrada correctamente en PostgreSQL."
       );
 
-      console.log("Persona creada:", resultado);
-
-      // Limpiar el formulario después de guardar
       formulario.reset();
 
     } catch (error) {
@@ -203,7 +252,7 @@ export default function CrearPersona() {
       setMensaje(
         error instanceof Error
           ? error.message
-          : "No se pudo conectar con el microservicio."
+          : "No se pudo conectar con la API Gateway."
       );
 
     } finally {
@@ -349,7 +398,9 @@ export default function CrearPersona() {
           className="crear-boton"
           disabled={guardando}
         >
-          {guardando ? "Guardando persona..." : "Crear persona"}
+          {guardando
+            ? "Guardando persona..."
+            : "Crear persona"}
         </button>
 
         {mensaje && (
