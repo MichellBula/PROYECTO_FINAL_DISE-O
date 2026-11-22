@@ -1,15 +1,19 @@
 
+import re
+
+import httpx
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from auth import usuario_autenticado
 from db import registrar_consulta_ia
+from n8n_cliente import enviar_a_n8n
 from recuperacion import recuperar_informacion
 
 
 app = FastAPI(
     title="Microservicio de consultas inteligentes",
-    version="0.1.0",
+    version="0.2.0",
 )
 
 
@@ -33,8 +37,8 @@ def procesar_consulta(
     pregunta = consulta.pregunta.strip()
     pregunta_normalizada = pregunta.lower().strip(" ¿?¡!.")
 
-    # Primera prueba: operacion agregada de conteo.
-    # No permite ejecutar SQL enviado por el usuario.
+    # Primera operacion controlada.
+    # No se ejecuta SQL proporcionado por el usuario o la IA.
     preguntas_permitidas = {
         "cuantas personas hay registradas": "contar_personas",
         "cuántas personas hay registradas": "contar_personas",
@@ -49,25 +53,70 @@ def procesar_consulta(
             detail="Esta pregunta todavia no esta implementada",
         )
 
-    # Por ahora solo se habilita esta consulta agregada.
-    # Las consultas con datos personales requieren
-    # definir y aplicar autorizaciones especificas.
+    # Recuperacion controlada desde PostgreSQL.
     datos = recuperar_informacion(operacion)
+    total = datos["total"]
 
-    respuesta = (
-        f"Actualmente hay {datos['total']} "
+    # Respuesta exacta, calculada por el microservicio.
+    respuesta_verificada = (
+        f"Actualmente hay {total} "
         "personas registradas en el sistema."
     )
 
+    try:
+        # Solo enviamos una pregunta permitida y el conteo.
+        # No enviamos cookies, documentos ni registros personales.
+        resultado_n8n = enviar_a_n8n(
+            pregunta=pregunta,
+            datos={"total": total},
+        )
+
+        if not isinstance(resultado_n8n, dict):
+            raise ValueError("Respuesta inesperada de n8n")
+
+        respuesta_ia = resultado_n8n.get("respuesta")
+
+        if not isinstance(respuesta_ia, str):
+            raise ValueError("n8n no devolvio una respuesta valida")
+
+        respuesta_ia = respuesta_ia.strip()
+
+        if not respuesta_ia:
+            raise ValueError("La respuesta de n8n esta vacia")
+
+    except (httpx.HTTPError, RuntimeError, ValueError) as exc:
+        registrar_consulta_ia(
+            usuario=identificador_usuario,
+            pregunta=pregunta,
+            respuesta="No fue posible generar la respuesta.",
+            resultado="ERROR",
+            detalle="Error en la integracion con n8n",
+        )
+
+        raise HTTPException(
+            status_code=503,
+            detail="No fue posible procesar la consulta inteligente",
+        ) from exc
+
+    # Comprobacion basica para esta pregunta de conteo.
+    # Evita utilizar una respuesta con cantidades diferentes.
+    numeros = re.findall(r"\d+", respuesta_ia)
+
+    if numeros == [str(total)]:
+        respuesta_final = respuesta_ia
+    else:
+        respuesta_final = respuesta_verificada
+
+    # Registrar la respuesta que realmente recibira el usuario.
     registrar_consulta_ia(
         usuario=identificador_usuario,
         pregunta=pregunta,
-        respuesta=respuesta,
+        respuesta=respuesta_final,
         resultado="EXITO",
-        detalle=f"Operacion autorizada: {operacion}",
+        detalle=f"Consulta IA con recuperacion: {operacion}",
     )
 
     return {
         "pregunta": pregunta,
-        "respuesta": respuesta,
+        "respuesta": respuesta_final,
     }
