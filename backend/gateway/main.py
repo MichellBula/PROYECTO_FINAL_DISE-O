@@ -19,6 +19,10 @@ SERVICIOS = {
     "modificar": os.getenv("MODIFICAR_URL", "http://modificar_persona:8003"),
     "eliminar": os.getenv("ELIMINAR_URL", "http://eliminar_persona:8005"),
     "auditoria": os.getenv("AUDITORIA_URL", "http://auditoria:8004"),
+    "consultas_ia": os.getenv(
+    "CONSULTAS_IA_URL",
+    "http://consultas_inteligentes:8007",
+),
 }
 
 
@@ -198,7 +202,9 @@ async def consultar_auditoria(request: Request):
 @app.post("/api/consultas-ia")
 async def consultas_ia(request: Request):
     verificar_acceso(request)
-    raise HTTPException(
-        503,
-        "La integracion con n8n y RAG aun no esta configurada",
+
+    return await reenviar(
+        request,
+        "consultas_ia",
+        "/consultas-ia",
     )

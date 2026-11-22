@@ -1,0 +1,36 @@
+
+name: gestion_personas_n8n
+
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:stable
+    container_name: gestion_personas_n8n
+
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:5678:5678"
+
+    environment:
+      N8N_HOST: localhost
+      N8N_PORT: "5678"
+      N8N_PROTOCOL: http
+
+      GENERIC_TIMEZONE: America/Bogota
+      TZ: America/Bogota
+
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+    networks:
+      - red_postgres
+
+volumes:
+  n8n_data:
+
+networks:
+  red_postgres:
+    external: true
+    name: postgres_default

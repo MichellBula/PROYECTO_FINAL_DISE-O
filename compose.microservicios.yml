@@ -115,6 +115,7 @@ services:
 
     volumes:
       - ./backend/services/modificar_persona/.env:/app/backend/services/modificar_persona/.env:ro
+
       # Volumen para conservar las fotografias
       - ./uploads:/app/uploads
 
@@ -212,8 +213,39 @@ services:
       ELIMINAR_URL: http://eliminar_persona:8005
       AUDITORIA_URL: http://auditoria:8004
 
+      # Nuevo servicio de consultas inteligentes
+      CONSULTAS_IA_URL: http://consultas_inteligentes:8007
+
     ports:
       - "127.0.0.1:8006:8006"
+
+    networks:
+      - red_postgres
+
+
+  # ============================================
+  # MICROSERVICIO DE CONSULTAS INTELIGENTES
+  # ============================================
+
+  consultas_inteligentes:
+    container_name: gestion_personas_consultas_ia
+
+    build:
+      context: .
+      dockerfile: backend/services/consultas_inteligentes/Dockerfile
+
+    restart: unless-stopped
+
+    env_file:
+      - ./backend/services/consultas_inteligentes/.env
+
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+
+    # Puerto 8007 disponible dentro de la red Docker.
+    # No se publica en el host para evitar conflictos
+    # con los tuneles SSH utilizados en desarrollo.
 
     networks:
       - red_postgres
