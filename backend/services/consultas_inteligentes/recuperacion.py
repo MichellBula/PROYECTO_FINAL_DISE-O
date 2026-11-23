@@ -1,146 +1,204 @@
 
 """
-Recuperación controlada de información para consultas inteligentes.
+Recuperacion de informacion desde PostgreSQL.
 
-Las operaciones SQL están predefinidas.
-No se permite ejecutar SQL generado por el modelo de IA.
+Todas las consultas son de solo lectura.
+Gemini no genera ni ejecuta instrucciones SQL.
 """
 
 from db import conexion
 
 
-# ============================================
-# CONTAR PERSONAS REGISTRADAS
-# ============================================
+# ==========================================
+# TOTAL DE PERSONAS
+# ==========================================
 
 def contar_personas():
-    """
-    Recupera la cantidad total de personas registradas.
-    """
+    with conexion() as conn, conn.cursor() as cur:
+        cur.execute("""
+            SELECT COUNT(*) AS total
+            FROM public.persona
+        """)
 
-    with conexion() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT COUNT(*) AS total
-                FROM public.persona
-                """
-            )
+        total = cur.fetchone()["total"]
 
-            resultado = cur.fetchone()
-
-    return {
-        "operacion": "contar_personas",
-        "total": resultado["total"],
-    }
+    return {"total": total}
 
 
-# ============================================
-# CONSULTAR PERSONA MÁS JOVEN
-# ============================================
-
-def persona_mas_joven():
-    """
-    Obtiene la persona con la fecha de nacimiento
-    más reciente.
-    """
-
-    with conexion() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT
-                    primer_nombre,
-                    segundo_nombre,
-                    apellidos,
-                    fecha_nacimiento
-                FROM public.persona
-                ORDER BY
-                    fecha_nacimiento DESC,
-                    id_persona ASC
-                LIMIT 1
-                """
-            )
-
-            resultado = cur.fetchone()
-
-    if resultado is None:
-        return {
-            "operacion": "persona_mas_joven",
-            "encontrado": False,
-            "datos": None,
-        }
-
-    return {
-        "operacion": "persona_mas_joven",
-        "encontrado": True,
-        "datos": {
-            "primer_nombre": resultado["primer_nombre"],
-            "segundo_nombre": resultado["segundo_nombre"],
-            "apellidos": resultado["apellidos"],
-            "fecha_nacimiento": (
-                resultado["fecha_nacimiento"].isoformat()
-            ),
-        },
-    }
-
-
-# ============================================
-# CONTAR PERSONAS POR GÉNERO
-# ============================================
+# ==========================================
+# PERSONAS AGRUPADAS POR GENERO
+# ==========================================
 
 def contar_por_genero():
-    """
-    Recupera la cantidad de personas agrupadas
-    por género.
-    """
+    with conexion() as conn, conn.cursor() as cur:
+        cur.execute("""
+            SELECT
+                COALESCE(genero, 'Sin especificar')
+                    AS genero,
+                COUNT(*) AS total
+            FROM public.persona
+            GROUP BY
+                COALESCE(genero, 'Sin especificar')
+            ORDER BY genero
+        """)
 
-    with conexion() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT
-                    genero,
-                    COUNT(*) AS total
-                FROM public.persona
-                GROUP BY genero
-                ORDER BY genero
-                """
-            )
-
-            resultados = cur.fetchall()
+        filas = cur.fetchall()
 
     return {
-        "operacion": "contar_por_genero",
-        "datos": resultados,
+        "datos": [
+            {
+                "genero": fila["genero"],
+                "total": fila["total"],
+            }
+            for fila in filas
+        ]
     }
 
 
-# ============================================
-# OPERACIONES AUTORIZADAS
-# ============================================
+# ==========================================
+# MAYORES DE EDAD
+# ==========================================
+
+def contar_mayores_edad():
+    with conexion() as conn, conn.cursor() as cur:
+        cur.execute("""
+            SELECT COUNT(*) AS total
+            FROM public.persona
+            WHERE fecha_nacimiento IS NOT NULL
+              AND fecha_nacimiento <=
+                  CURRENT_DATE - INTERVAL '18 years'
+        """)
+
+        total = cur.fetchone()["total"]
+
+    return {"total": total}
+
+
+# ==========================================
+# MENORES DE EDAD
+# ==========================================
+
+def contar_menores_edad():
+    with conexion() as conn, conn.cursor() as cur:
+        cur.execute("""
+            SELECT COUNT(*) AS total
+            FROM public.persona
+            WHERE fecha_nacimiento IS NOT NULL
+              AND fecha_nacimiento >
+                  CURRENT_DATE - INTERVAL '18 years'
+        """)
+
+        total = cur.fetchone()["total"]
+
+    return {"total": total}
+
+
+# ==========================================
+# EDAD PROMEDIO
+# ==========================================
+
+def promedio_edad():
+    with conexion() as conn, conn.cursor() as cur:
+        cur.execute("""
+            SELECT AVG(
+                EXTRACT(
+                    YEAR FROM AGE(
+                        CURRENT_DATE,
+                        fecha_nacimiento
+                    )
+                )
+            ) AS promedio
+            FROM public.persona
+            WHERE fecha_nacimiento IS NOT NULL
+              AND fecha_nacimiento <= CURRENT_DATE
+        """)
+
+        valor = cur.fetchone()["promedio"]
+
+    return {
+        "promedio": (
+            round(float(valor), 2)
+            if valor is not None
+            else None
+        )
+    }
+
+
+# ==========================================
+# CONTAR UN GENERO ESPECIFICO
+# ==========================================
+
+def contar_genero_especifico(genero: str):
+    if (
+        not isinstance(genero, str)
+        or not 1 <= len(genero.strip()) <= 60
+    ):
+        raise ValueError("Genero invalido")
+
+    genero = genero.strip()
+
+    with conexion() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT COUNT(*) AS total
+            FROM public.persona
+            WHERE LOWER(TRIM(genero)) = LOWER(%s)
+            """,
+            (genero,),
+        )
+
+        total = cur.fetchone()["total"]
+
+    return {
+        "genero": genero,
+        "total": total,
+    }
+
+
+# ==========================================
+# OPERACIONES DISPONIBLES
+# ==========================================
 
 OPERACIONES_AUTORIZADAS = {
     "contar_personas": contar_personas,
-    "persona_mas_joven": persona_mas_joven,
     "contar_por_genero": contar_por_genero,
+    "contar_mayores_edad": contar_mayores_edad,
+    "contar_menores_edad": contar_menores_edad,
+    "promedio_edad": promedio_edad,
+    "contar_genero_especifico": contar_genero_especifico,
 }
 
 
-def recuperar_informacion(operacion: str):
-    """
-    Ejecuta únicamente operaciones conocidas
-    y autorizadas.
+# ==========================================
+# EJECUTAR RECUPERACION
+# ==========================================
 
-    Nunca recibe instrucciones SQL del usuario
-    ni del modelo de inteligencia artificial.
-    """
+def recuperar_informacion(
+    operacion: str,
+    parametros=None,
+) -> dict:
+
+    parametros = parametros or {}
+
+    if not isinstance(parametros, dict):
+        raise ValueError("Parametros invalidos")
 
     funcion = OPERACIONES_AUTORIZADAS.get(operacion)
 
     if funcion is None:
+        raise ValueError("Operacion no disponible")
+
+    if operacion == "contar_genero_especifico":
+        if set(parametros) != {"genero"}:
+            raise ValueError(
+                "Se requiere solamente el parametro genero"
+            )
+
+        return funcion(parametros["genero"])
+
+    if parametros:
         raise ValueError(
-            "La operación solicitada no está autorizada"
+            "La operacion no admite parametros"
         )
 
     return funcion()
