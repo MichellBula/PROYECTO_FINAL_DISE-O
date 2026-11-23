@@ -23,7 +23,9 @@ export default defineConfig({
     proxy: {
       "/api": {
         // Túnel SSH hacia la Gateway Docker de CotesPC
-        target: "http://127.0.0.1:8007",
+        target:
+  process.env.FRONTEND_API_TARGET ||
+  "http://127.0.0.1:8007",
 
         changeOrigin: true,
 
