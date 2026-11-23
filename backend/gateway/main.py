@@ -361,46 +361,6 @@ async def crear_persona(request: Request):
         "/personas",
     )
 
-
-# =====================================================
-# FOTOGRAFÍA DE PERSONA (LECTURA PROTEGIDA)
-# =====================================================
-
-@app.get("/api/personas/{documento}/fotografia")
-async def consultar_fotografia(
-    documento: str,
-    request: Request,
-    tipo_documento: str = Query(...),
-):
-    # Validar sesión y permisos de consulta.
-    verificar_acceso(
-        request,
-        "CONSULTAR",
-    )
-
-    # Validar documento antes de enviar la solicitud.
-    validar_documento(
-        tipo_documento,
-        documento,
-    )
-
-    # Ruta interna del microservicio consultar_persona.
-    ruta = (
-        "/personas/"
-        + quote(tipo_documento, safe="")
-        + "/"
-        + quote(documento, safe="")
-        + "/fotografia"
-    )
-
-    return await reenviar(
-        request,
-        "consultar",
-        ruta,
-        excluir_parametros=("tipo_documento",),
-    )
-
-
 # =====================================================
 # FOTOGRAFÍA DE PERSONA (LECTURA PROTEGIDA)
 # =====================================================

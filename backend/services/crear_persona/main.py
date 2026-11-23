@@ -24,9 +24,6 @@ from db import (
     registrar_auditoria,
 )
 
-from fotos import router_fotografias
-
-
 # ==========================================
 # CONFIGURACIÓN
 # ==========================================
