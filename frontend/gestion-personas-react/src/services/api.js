@@ -3,8 +3,8 @@
  * Servicio de comunicación con la API Gateway.
  *
  * Todas las solicitudes se envían mediante /api.
- * La autenticación utiliza Roble y sesiones con cookies HttpOnly.
- * Las operaciones de escritura utilizan protección CSRF.
+ * La autenticación utiliza Roble y cookies HttpOnly.
+ * Las operaciones protegidas utilizan token CSRF.
  */
 
 async function solicitar(ruta, opciones = {}) {
@@ -81,7 +81,6 @@ export async function cerrarSesion() {
 
 // ============================================
 // CONSULTAR PERSONA
-// GET /api/personas/{documento}
 // ============================================
 
 export function consultarPersona(tipoDocumento, numeroDocumento) {
@@ -96,14 +95,12 @@ export function consultarPersona(tipoDocumento, numeroDocumento) {
 
 // ============================================
 // ELIMINAR PERSONA
-// DELETE /api/personas/{documento}
 // ============================================
 
 export async function eliminarPersona(tipoDocumento, numeroDocumento) {
   const numero = encodeURIComponent(numeroDocumento);
   const tipo = encodeURIComponent(tipoDocumento);
 
-  // Obtener el token CSRF de la sesión actual.
   const sesion = await consultarSesion();
 
   return solicitar(
@@ -115,4 +112,40 @@ export async function eliminarPersona(tipoDocumento, numeroDocumento) {
       },
     }
   );
+}
+
+
+// ============================================
+// CONSULTAS INTELIGENTES
+// ============================================
+
+export async function consultarIA(pregunta) {
+  const texto = pregunta.trim();
+
+  if (!texto || texto.length > 500) {
+    throw new Error(
+      "La pregunta debe contener entre 1 y 500 caracteres."
+    );
+  }
+
+  // Obtener el token CSRF de la sesión de Roble.
+  const sesion = await consultarSesion();
+
+  if (!sesion.csrf_token) {
+    throw new Error(
+      "No se pudo obtener el token de seguridad de la sesión."
+    );
+  }
+
+  // La Gateway verificará la sesión y el token CSRF.
+  return solicitar("/consultas-ia", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": sesion.csrf_token,
+    },
+    body: JSON.stringify({
+      pregunta: texto,
+    }),
+  });
 }
