@@ -1,50 +1,30 @@
 
-"""
-Microservicio de consultas inteligentes.
-
-Autenticacion con Proyecto Roble.
-Clasificacion mediante n8n y Gemini.
-Recuperacion SQL controlada.
-Auditoria de consultas.
-"""
-
-from collections import Counter
+import os
 import re
+from collections import Counter
+from pathlib import Path
 
 import httpx
-
+from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from auth import usuario_autenticado
 from db import registrar_consulta_ia
-
-from n8n_cliente import (
-    clasificar_pregunta,
-    enviar_a_n8n,
-)
-
-from recuperacion import (
-    recuperar_informacion,
-    OPERACIONES_AUTORIZADAS,
-)
+from n8n_cliente import clasificar_pregunta, enviar_a_n8n
+from recuperacion import recuperar_informacion
 
 
-# ==========================================
-# APLICACION
-# ==========================================
+load_dotenv(Path(__file__).with_name(".env"))
 
 app = FastAPI(
     title="Microservicio de consultas inteligentes",
-    version="0.4.0",
+    version="0.5.0",
 )
 
 
 class ConsultaIA(BaseModel):
-    pregunta: str = Field(
-        min_length=1,
-        max_length=500,
-    )
+    pregunta: str = Field(min_length=1, max_length=500)
 
 
 @app.get("/salud")
@@ -55,323 +35,270 @@ def salud():
     }
 
 
-# ==========================================
-# RESPUESTAS EXACTAS DE POSTGRESQL
-# ==========================================
+def puede_consultar_identidades(usuario):
+    """
+    Permite consultas individuales solo a los
+    identificadores Roble autorizados por el proyecto.
+    """
+    configurados = os.getenv(
+        "CONSULTAS_IA_USUARIOS_IDENTIFICACION", ""
+    )
 
-def respuesta_exacta(operacion: str, datos: dict) -> str:
+    permitidos = {
+        identificador.strip()
+        for identificador in configurados.split(",")
+        if identificador.strip()
+    }
 
+    return str(usuario["user_id"]) in permitidos
+
+
+def respuesta_exacta(operacion, datos, parametros):
     if operacion == "contar_personas":
         return (
-            f"Actualmente hay {datos['total']} "
-            "personas registradas en el sistema."
+            f"Hay {datos['total']} personas "
+            "registradas en el sistema."
         )
 
     if operacion == "contar_por_genero":
-        if not datos["datos"]:
-            return (
-                "No hay personas registradas "
-                "para agrupar por genero."
-            )
+        grupos = datos["datos"]
+        if not grupos:
+            return "No hay personas registradas."
 
         detalle = "; ".join(
             f"{fila['genero']}: {fila['total']}"
-            for fila in datos["datos"]
+            for fila in grupos
         )
-
-        return (
-            f"Personas registradas por genero: "
-            f"{detalle}."
-        )
+        return f"Personas por género: {detalle}."
 
     if operacion == "contar_mayores_edad":
         return (
             f"Hay {datos['total']} personas "
-            "de 18 anos o mas registradas."
+            "de 18 años o más."
         )
 
     if operacion == "contar_menores_edad":
         return (
             f"Hay {datos['total']} personas "
-            "menores de 18 anos registradas."
+            "menores de 18 años."
         )
 
     if operacion == "promedio_edad":
-        if datos["promedio"] is None:
-            return (
-                "No hay fechas de nacimiento validas "
-                "para calcular el promedio de edad."
-            )
-
-        return (
-            "La edad promedio de las personas "
-            f"registradas es {datos['promedio']} anos."
-        )
+        valor = datos["promedio"]
+        if valor is None:
+            return "No hay datos válidos para calcular la edad promedio."
+        return f"La edad promedio es de {valor} años."
 
     if operacion == "contar_genero_especifico":
         return (
             f"Hay {datos['total']} personas "
-            f"registradas con genero {datos['genero']}."
+            f"registradas con género {datos['genero']}."
         )
 
-    raise ValueError(
-        "Operacion sin respuesta definida"
+    if operacion == "buscar_personas":
+        personas = datos["personas"]
+
+        if not personas:
+            return (
+                "No se encontraron personas que "
+                "cumplan los criterios de búsqueda."
+            )
+
+        if len(personas) == 1:
+            persona = personas[0]
+            if parametros.get("orden") == "mas_joven":
+                prefijo = "La persona más joven encontrada"
+            elif parametros.get("orden") == "mas_mayor":
+                prefijo = "La persona de mayor edad encontrada"
+            else:
+                prefijo = "La persona encontrada"
+
+            return (
+                f"{prefijo} es {persona['nombre']}, "
+                f"con {persona['edad']} años."
+            )
+
+        listado = "; ".join(
+            f"{p['nombre']} ({p['edad']} años)"
+            for p in personas
+        )
+
+        return (
+            f"Se muestran {len(personas)} personas "
+            f"(máximo {datos['limite']}): {listado}."
+        )
+
+    raise ValueError("Operacion no soportada")
+
+
+def cifras_coinciden(respuesta_ia, verificada):
+    numeros_ia = Counter(
+        re.findall(r"\d+(?:[.,]\d+)?", respuesta_ia)
     )
-
-
-# ==========================================
-# VALIDAR CIFRAS DE LA RESPUESTA IA
-# ==========================================
-
-def validar_respuesta_ia(
-    texto: str,
-    respuesta_verificada: str,
-) -> bool:
-    """
-    Descarta respuestas de Gemini que introduzcan
-    cifras distintas a las verificadas en PostgreSQL.
-
-    Es una comprobacion basica, no una garantia
-    completa de exactitud semantica.
-    """
-
     numeros_verificados = Counter(
-        re.findall(
-            r"\d+(?:[.,]\d+)?",
-            respuesta_verificada,
-        )
+        re.findall(r"\d+(?:[.,]\d+)?", verificada)
     )
 
-    numeros_generados = Counter(
-        re.findall(
-            r"\d+(?:[.,]\d+)?",
-            texto,
-        )
-    )
+    return numeros_ia == numeros_verificados
 
-    return (
-        bool(texto.strip())
-        and numeros_generados == numeros_verificados
-    )
-
-
-# ==========================================
-# PROCESAR CONSULTA
-# ==========================================
 
 @app.post("/consultas-ia")
 def procesar_consulta(
     consulta: ConsultaIA,
     usuario: dict = Depends(usuario_autenticado),
 ):
-
     pregunta = consulta.pregunta.strip()
+    identificador = f"roble:{usuario['user_id']}"
 
-    identificador_usuario = (
-        f"roble:{usuario['user_id']}"
-    )
-
-    if not pregunta:
-        raise HTTPException(
-            status_code=422,
-            detail="La pregunta no puede estar vacia",
-        )
-
-    # Registrar operaciones en auditoria.
-    def auditar(
-        resultado: str,
-        respuesta: str,
-        detalle: str,
-    ):
+    def auditar(resultado, respuesta, detalle):
         registrar_consulta_ia(
-            usuario=identificador_usuario,
+            usuario=identificador,
             pregunta=pregunta,
             respuesta=respuesta,
             resultado=resultado,
             detalle=detalle,
         )
 
-    # ======================================
-    # 1. CLASIFICACION
-    # ======================================
-
-    try:
-        clasificacion = clasificar_pregunta(pregunta)
-
-    except (
-        httpx.HTTPError,
-        RuntimeError,
-        ValueError,
-    ) as exc:
-
-        auditar(
-            "ERROR",
-            "No fue posible clasificar la pregunta.",
-            "Error en clasificador n8n",
+    if not pregunta:
+        raise HTTPException(
+            status_code=422,
+            detail="La pregunta no puede estar vacía",
         )
 
+    # 1. Clasificar mediante Gemini/n8n.
+    try:
+        clasificacion = clasificar_pregunta(pregunta)
+        operacion = clasificacion["operacion"]
+        parametros = clasificacion["parametros"]
+
+    except (httpx.HTTPError, ValueError, RuntimeError) as exc:
+        auditar(
+            "ERROR",
+            "Error de clasificación",
+            "Clasificador n8n no disponible",
+        )
         raise HTTPException(
             status_code=503,
             detail="No fue posible clasificar la consulta",
         ) from exc
 
-    operacion = clasificacion["operacion"]
-    parametros = clasificacion["parametros"]
-
-    # ======================================
-    # 2. PREGUNTAS NO RECONOCIDAS
-    # ======================================
-
+    # 2. Consultas fuera de alcance.
     if operacion == "NO_RECONOCIDA":
         auditar(
             "DENEGADO",
-            "Pregunta fuera del alcance.",
-            "Operacion no reconocida",
+            "Consulta no reconocida",
+            "Pregunta fuera de las operaciones disponibles",
         )
-
         raise HTTPException(
             status_code=422,
-            detail=(
-                "La pregunta no corresponde "
-                "a una consulta disponible"
-            ),
+            detail="La pregunta no corresponde a una consulta disponible",
         )
 
-    # ======================================
-    # 3. OPERACIONES HABILITADAS
-    # ======================================
+    operaciones_estadisticas = {
+        "contar_personas",
+        "contar_por_genero",
+        "contar_mayores_edad",
+        "contar_menores_edad",
+        "promedio_edad",
+        "contar_genero_especifico",
+    }
 
-    # Solamente consultas agregadas.
-    # No se permite recuperar personas
-    # individuales mediante este endpoint.
+    # 3. Autorización separada para identidades.
+    if operacion == "buscar_personas":
+        if not puede_consultar_identidades(usuario):
+            auditar(
+                "DENEGADO",
+                "Consulta individual no autorizada",
+                "Sin permiso de identificación",
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="No tienes permiso para consultar identidades",
+            )
 
-    operaciones_habilitadas = set(
-        OPERACIONES_AUTORIZADAS
-    )
-
-    if operacion not in operaciones_habilitadas:
-
+    elif operacion not in operaciones_estadisticas:
         auditar(
             "DENEGADO",
-            "Consulta no autorizada.",
-            (
-                "Operacion no habilitada: "
-                f"{operacion[:80]}"
-            ),
+            "Operación no autorizada",
+            "Operación no habilitada",
         )
-
         raise HTTPException(
             status_code=403,
-            detail="Esta operacion no esta habilitada",
+            detail="Esta operación no está habilitada",
         )
 
-    # ======================================
-    # 4. RECUPERAR INFORMACION
-    # ======================================
-
+    # 4. Recuperación SQL controlada.
     try:
         datos = recuperar_informacion(
-            operacion,
-            parametros,
+            operacion, parametros
         )
-
-        respuesta_verificada = respuesta_exacta(
-            operacion,
-            datos,
+        verificada = respuesta_exacta(
+            operacion, datos, parametros
         )
 
     except ValueError as exc:
         auditar(
             "DENEGADO",
-            "Parametros invalidos.",
-            "Parametros invalidos en consulta IA",
+            "Parámetros inválidos",
+            "Validación de filtros",
         )
-
         raise HTTPException(
             status_code=422,
-            detail=(
-                "La consulta contiene "
-                "parametros invalidos"
-            ),
+            detail="Los filtros de consulta no son válidos",
         ) from exc
 
     except Exception as exc:
         auditar(
             "ERROR",
-            "Error al consultar los datos.",
-            "Error en recuperacion SQL",
+            "Error al recuperar datos",
+            "Error en PostgreSQL",
         )
-
         raise HTTPException(
             status_code=503,
-            detail="No fue posible recuperar los datos",
+            detail="No fue posible recuperar la información",
         ) from exc
 
-    # ======================================
-    # 5. PROCESAR EN N8N
-    # ======================================
-
+    # 5. Enviar únicamente los resultados autorizados a n8n.
     try:
-        resultado_n8n = enviar_a_n8n(
+        resultado_ia = enviar_a_n8n(
             pregunta=pregunta,
             datos=datos,
         )
 
-        respuesta_ia = resultado_n8n.get("respuesta")
+        texto_ia = resultado_ia.get("respuesta")
 
-        if (
-            not isinstance(respuesta_ia, str)
-            or not respuesta_ia.strip()
-        ):
-            raise ValueError(
-                "Respuesta no valida del procesador IA"
-            )
+        if not isinstance(texto_ia, str) or not texto_ia.strip():
+            raise ValueError("Respuesta de IA inválida")
 
-    except (
-        httpx.HTTPError,
-        RuntimeError,
-        ValueError,
-    ) as exc:
-
+    except (httpx.HTTPError, ValueError, RuntimeError) as exc:
         auditar(
             "ERROR",
-            "No fue posible generar la respuesta.",
-            "Error en procesador n8n",
+            "Error en respuesta IA",
+            "Procesamiento n8n fallido",
         )
-
         raise HTTPException(
             status_code=503,
-            detail=(
-                "No fue posible generar "
-                "la respuesta inteligente"
-            ),
+            detail="No fue posible generar la respuesta inteligente",
         ) from exc
 
-    # ======================================
-    # 6. VALIDAR RESPUESTA
-    # ======================================
+    # 6. Priorizar exactitud en resultados individuales.
+    # Las respuestas con nombres se construyen con
+    # datos de PostgreSQL, no con nombres inventados.
+    if operacion == "buscar_personas":
+        respuesta_final = verificada
 
-    if validar_respuesta_ia(
-        respuesta_ia,
-        respuesta_verificada,
-    ):
-        respuesta_final = respuesta_ia.strip()
+    elif cifras_coinciden(texto_ia, verificada):
+        respuesta_final = texto_ia.strip()
+
     else:
-        respuesta_final = respuesta_verificada
+        respuesta_final = verificada
 
-    # ======================================
-    # 7. AUDITORIA
-    # ======================================
-
+    # 7. Auditoría y respuesta.
     auditar(
         "EXITO",
         respuesta_final,
         f"Consulta IA: {operacion}",
     )
-
-    # ======================================
-    # 8. RESPUESTA AL FRONTEND
-    # ======================================
 
     return {
         "pregunta": pregunta,
