@@ -1,12 +1,13 @@
 
 import os
 import re
+import secrets
 from collections import Counter
 from pathlib import Path
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from auth import usuario_autenticado
@@ -23,23 +24,16 @@ load_dotenv(Path(__file__).with_name(".env"))
 
 app = FastAPI(
     title="Microservicio de consultas inteligentes",
-    version="0.6.0",
+    version="0.7.0",
 )
 
 
-# ==========================================
-# MODELO DE SOLICITUD
-# ==========================================
-
 class ConsultaIA(BaseModel):
-    pregunta: str = Field(
-        min_length=1,
-        max_length=500,
-    )
+    pregunta: str = Field(min_length=1, max_length=500)
 
 
 # ==========================================
-# ESTADO DEL MICROSERVICIO
+# SALUD DEL MICROSERVICIO
 # ==========================================
 
 @app.get("/salud")
@@ -51,15 +45,25 @@ def salud():
 
 
 # ==========================================
-# AUTORIZACION PARA CONSULTAS INDIVIDUALES
+# OPERACIONES PERMITIDAS
+# ==========================================
+
+OPERACIONES_ESTADISTICAS = {
+    "contar_personas",
+    "contar_por_genero",
+    "contar_mayores_edad",
+    "contar_menores_edad",
+    "promedio_edad",
+    "contar_genero_especifico",
+    "estadisticas_filtradas",
+}
+
+
+# ==========================================
+# PERMISOS DE IDENTIFICACION EN ROBLE
 # ==========================================
 
 def puede_consultar_identidades(usuario):
-    """
-    Comprueba si el usuario autenticado con Roble
-    tiene permiso para consultar personas individuales.
-    """
-
     configurados = os.getenv(
         "CONSULTAS_IA_USUARIOS_IDENTIFICACION",
         "",
@@ -75,23 +79,74 @@ def puede_consultar_identidades(usuario):
 
 
 # ==========================================
-# GENERAR RESPUESTAS EXACTAS
+# SEGURIDAD DEL CHAT INTERNO DE N8N
+# ==========================================
+
+def verificar_chat_interno(
+    x_internal_chat_key: str | None = Header(
+        default=None,
+        alias="X-Internal-Chat-Key",
+    ),
+):
+    """
+    Autentica la integracion tecnica n8n -> FastAPI.
+
+    Esta clave NO representa una sesion Roble
+    ni concede identidad de usuario final.
+    """
+
+    clave_esperada = os.getenv(
+        "N8N_CHAT_INTERNAL_API_KEY",
+        "",
+    )
+
+    if not clave_esperada:
+        raise HTTPException(
+            status_code=503,
+            detail="Integracion interna no configurada",
+        )
+
+    if (
+        not x_internal_chat_key
+        or not secrets.compare_digest(
+            x_internal_chat_key,
+            clave_esperada,
+        )
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Acceso interno no autorizado",
+        )
+
+    return True
+
+
+def chat_demo_permite_identidades():
+    """
+    Solo se habilita expresamente para una
+    demostracion autorizada con datos ficticios.
+
+    No equivale a una autorizacion de Roble.
+    """
+
+    return os.getenv(
+        "CONSULTAS_IA_CHAT_DEMO_IDENTIDADES",
+        "false",
+    ).strip().lower() == "true"
+
+
+# ==========================================
+# RESPUESTAS VERIFICADAS DESDE POSTGRESQL
 # ==========================================
 
 def respuesta_exacta(operacion, datos, parametros):
-    """
-    Construye respuestas utilizando exclusivamente
-    los resultados obtenidos de PostgreSQL.
-    """
 
-    # TOTAL DE PERSONAS
     if operacion == "contar_personas":
         return (
             f"Hay {datos['total']} personas "
             "registradas en el sistema."
         )
 
-    # PERSONAS AGRUPADAS POR GENERO
     if operacion == "contar_por_genero":
         grupos = datos["datos"]
 
@@ -105,21 +160,18 @@ def respuesta_exacta(operacion, datos, parametros):
 
         return f"Personas por género: {detalle}."
 
-    # PERSONAS MAYORES DE EDAD
     if operacion == "contar_mayores_edad":
         return (
             f"Hay {datos['total']} personas "
             "de 18 años o más."
         )
 
-    # PERSONAS MENORES DE EDAD
     if operacion == "contar_menores_edad":
         return (
             f"Hay {datos['total']} personas "
             "menores de 18 años."
         )
 
-    # EDAD PROMEDIO
     if operacion == "promedio_edad":
         valor = datos["promedio"]
 
@@ -131,16 +183,11 @@ def respuesta_exacta(operacion, datos, parametros):
 
         return f"La edad promedio es de {valor} años."
 
-    # PERSONAS DE UN GENERO ESPECIFICO
     if operacion == "contar_genero_especifico":
         return (
             f"Hay {datos['total']} personas "
             f"registradas con género {datos['genero']}."
         )
-
-    # ======================================
-    # NUEVO: ESTADISTICAS CON FILTROS
-    # ======================================
 
     if operacion == "estadisticas_filtradas":
         coincidencias = datos["coincidencias"]
@@ -150,25 +197,20 @@ def respuesta_exacta(operacion, datos, parametros):
 
             if valor is None:
                 return (
-                    "No hay personas registradas para "
-                    "calcular el porcentaje."
+                    "No hay personas registradas "
+                    "para calcular el porcentaje."
                 )
 
             return (
                 f"Se encontraron {coincidencias} personas "
                 "que cumplen los filtros solicitados, "
-                f"equivalentes al {valor}% "
-                "del total registrado."
+                f"equivalentes al {valor}% del total."
             )
 
         return (
             f"Se encontraron {coincidencias} personas "
             "que cumplen los filtros solicitados."
         )
-
-    # ======================================
-    # BUSQUEDA INDIVIDUAL DE PERSONAS
-    # ======================================
 
     if operacion == "buscar_personas":
         personas = datos["personas"]
@@ -181,13 +223,12 @@ def respuesta_exacta(operacion, datos, parametros):
 
         if len(personas) == 1:
             persona = personas[0]
+            orden = parametros.get("orden")
 
-            if parametros.get("orden") == "mas_joven":
+            if orden == "mas_joven":
                 prefijo = "La persona más joven encontrada"
-
-            elif parametros.get("orden") == "mas_mayor":
+            elif orden == "mas_mayor":
                 prefijo = "La persona de mayor edad encontrada"
-
             else:
                 prefijo = "La persona encontrada"
 
@@ -211,16 +252,13 @@ def respuesta_exacta(operacion, datos, parametros):
 
 
 # ==========================================
-# VALIDACION BASICA DE CIFRAS
+# VERIFICACION BASICA DE NUMEROS
 # ==========================================
 
 def cifras_coinciden(respuesta_ia, verificada):
     """
-    Compara las cantidades presentes en la respuesta
-    de Gemini con las obtenidas de PostgreSQL.
-
-    Esta validacion no garantiza que toda la respuesta
-    generada sea semanticamente correcta.
+    Comprueba numeros, pero no garantiza
+    por si sola la exactitud semantica.
     """
 
     numeros_ia = Counter(
@@ -241,22 +279,22 @@ def cifras_coinciden(respuesta_ia, verificada):
 
 
 # ==========================================
-# PROCESAR CONSULTA INTELIGENTE
+# PROCESAMIENTO COMPARTIDO
 # ==========================================
 
-@app.post("/consultas-ia")
-def procesar_consulta(
-    consulta: ConsultaIA,
-    usuario: dict = Depends(usuario_autenticado),
+def ejecutar_consulta(
+    pregunta: str,
+    identificador: str,
+    permitir_identidades: bool,
 ):
+    """
+    Reutiliza clasificacion, recuperacion,
+    generacion y auditoria.
 
-    pregunta = consulta.pregunta.strip()
+    No recibe instrucciones SQL del modelo.
+    """
 
-    identificador = f"roble:{usuario['user_id']}"
-
-    # ======================================
-    # FUNCION DE AUDITORIA
-    # ======================================
+    pregunta = pregunta.strip()
 
     def auditar(resultado, respuesta, detalle):
         registrar_consulta_ia(
@@ -274,7 +312,7 @@ def procesar_consulta(
         )
 
     # ======================================
-    # 1. CLASIFICAR PREGUNTA CON GEMINI
+    # 1. CLASIFICAR PREGUNTA
     # ======================================
 
     try:
@@ -290,7 +328,6 @@ def procesar_consulta(
         KeyError,
         TypeError,
     ) as exc:
-
         auditar(
             "ERROR",
             "No fue posible clasificar la pregunta.",
@@ -303,11 +340,10 @@ def procesar_consulta(
         ) from exc
 
     # ======================================
-    # 2. PREGUNTAS NO RECONOCIDAS
+    # 2. VALIDAR OPERACION
     # ======================================
 
     if operacion == "NO_RECONOCIDA":
-
         auditar(
             "DENEGADO",
             "Pregunta fuera del alcance.",
@@ -322,28 +358,8 @@ def procesar_consulta(
             ),
         )
 
-    # ======================================
-    # 3. OPERACIONES ESTADISTICAS
-    # ======================================
-
-    operaciones_estadisticas = {
-        "contar_personas",
-        "contar_por_genero",
-        "contar_mayores_edad",
-        "contar_menores_edad",
-        "promedio_edad",
-        "contar_genero_especifico",
-        "estadisticas_filtradas",
-    }
-
-    # ======================================
-    # 4. VALIDAR PERMISOS
-    # ======================================
-
     if operacion == "buscar_personas":
-
-        if not puede_consultar_identidades(usuario):
-
+        if not permitir_identidades:
             auditar(
                 "DENEGADO",
                 "Consulta individual no autorizada.",
@@ -358,8 +374,7 @@ def procesar_consulta(
                 ),
             )
 
-    elif operacion not in operaciones_estadisticas:
-
+    elif operacion not in OPERACIONES_ESTADISTICAS:
         auditar(
             "DENEGADO",
             "Operación no autorizada.",
@@ -372,7 +387,7 @@ def procesar_consulta(
         )
 
     # ======================================
-    # 5. RECUPERAR INFORMACION POSTGRESQL
+    # 3. RECUPERAR DATOS
     # ======================================
 
     try:
@@ -388,7 +403,6 @@ def procesar_consulta(
         )
 
     except ValueError as exc:
-
         auditar(
             "DENEGADO",
             "Parámetros inválidos.",
@@ -401,7 +415,6 @@ def procesar_consulta(
         ) from exc
 
     except Exception as exc:
-
         auditar(
             "ERROR",
             "Error al recuperar información.",
@@ -414,7 +427,7 @@ def procesar_consulta(
         ) from exc
 
     # ======================================
-    # 6. GENERAR RESPUESTA MEDIANTE N8N
+    # 4. GENERAR RESPUESTA CON N8N + GEMINI
     # ======================================
 
     try:
@@ -429,9 +442,7 @@ def procesar_consulta(
             not isinstance(texto_ia, str)
             or not texto_ia.strip()
         ):
-            raise ValueError(
-                "Respuesta de IA inválida"
-            )
+            raise ValueError("Respuesta de IA inválida")
 
     except (
         httpx.HTTPError,
@@ -439,7 +450,6 @@ def procesar_consulta(
         ValueError,
         AttributeError,
     ) as exc:
-
         auditar(
             "ERROR",
             "No fue posible generar la respuesta.",
@@ -455,17 +465,15 @@ def procesar_consulta(
         ) from exc
 
     # ======================================
-    # 7. VALIDAR LA RESPUESTA GENERADA
+    # 5. ASEGURAR RESPUESTA FUNDAMENTADA
     # ======================================
 
-    if operacion == "buscar_personas":
-        # Para las consultas individuales usamos
-        # directamente los resultados de PostgreSQL.
-        respuesta_final = verificada
-
-    elif operacion == "estadisticas_filtradas":
-        # Para filtros combinados priorizamos la
-        # respuesta calculada por PostgreSQL.
+    # Consultas con filtros o identidades:
+    # se conserva el resultado exacto de PostgreSQL.
+    if operacion in {
+        "buscar_personas",
+        "estadisticas_filtradas",
+    }:
         respuesta_final = verificada
 
     elif cifras_coinciden(texto_ia, verificada):
@@ -475,7 +483,7 @@ def procesar_consulta(
         respuesta_final = verificada
 
     # ======================================
-    # 8. REGISTRAR AUDITORIA
+    # 6. AUDITAR Y RESPONDER
     # ======================================
 
     auditar(
@@ -484,11 +492,55 @@ def procesar_consulta(
         f"Consulta IA: {operacion}",
     )
 
-    # ======================================
-    # 9. RESPONDER AL FRONTEND REACT
-    # ======================================
-
     return {
         "pregunta": pregunta,
         "respuesta": respuesta_final,
     }
+
+
+# ==========================================
+# RUTA EXISTENTE PARA REACT + ROBLE
+# ==========================================
+
+@app.post("/consultas-ia")
+def procesar_consulta(
+    consulta: ConsultaIA,
+    usuario: dict = Depends(usuario_autenticado),
+):
+    return ejecutar_consulta(
+        pregunta=consulta.pregunta,
+        identificador=f"roble:{usuario['user_id']}",
+        permitir_identidades=puede_consultar_identidades(
+            usuario
+        ),
+    )
+
+
+# ==========================================
+# NUEVA RUTA INTERNA PARA CHAT DE N8N
+# ==========================================
+
+@app.post("/consultas-ia/chat-interno")
+def procesar_chat_interno(
+    consulta: ConsultaIA,
+    acceso_interno: bool = Depends(
+        verificar_chat_interno
+    ),
+):
+    """
+    Ruta tecnica para la demostracion privada
+    desde el editor de n8n.
+
+    No afirma que el usuario se autentico
+    mediante Roble.
+
+    El encabezado secreto es obligatorio.
+    """
+
+    return ejecutar_consulta(
+        pregunta=consulta.pregunta,
+        identificador="servicio:n8n_chat_demo",
+        permitir_identidades=(
+            chat_demo_permite_identidades()
+        ),
+    )
