@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./CrearPersona.css";
 
 export default function CrearPersona() {
