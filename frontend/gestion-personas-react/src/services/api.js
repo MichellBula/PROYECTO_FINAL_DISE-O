@@ -1,11 +1,18 @@
-
 /**
- * Servicio de comunicación con la API Gateway.
+ * Comunicación entre React y el API Gateway.
  *
- * Todas las solicitudes se envían mediante /api.
- * La autenticación utiliza Roble y cookies HttpOnly.
- * Las operaciones protegidas utilizan token CSRF.
+ * Funcionalidades:
+ * - Autenticación con Roble.
+ * - Registro de usuarios.
+ * - Verificación de correo.
+ * - Administración de roles.
+ * - Consulta y eliminación de personas.
+ * - Consultas inteligentes.
  */
+
+// =====================================================
+// 1. FUNCIÓN GENERAL PARA SOLICITUDES
+// =====================================================
 
 async function solicitar(ruta, opciones = {}) {
   let respuesta;
@@ -17,7 +24,8 @@ async function solicitar(ruta, opciones = {}) {
     });
   } catch {
     throw new Error(
-      "No se pudo conectar con la API Gateway. Comprueba la conexión con el servidor."
+      "No se pudo conectar con la API Gateway. " +
+      "Comprueba la conexión con el servidor."
     );
   }
 
@@ -28,7 +36,7 @@ async function solicitar(ruta, opciones = {}) {
   try {
     datos = texto ? JSON.parse(texto) : {};
   } catch {
-    // No mostrar HTML ni trazas internas al usuario.
+    // No mostrar respuestas HTML ni errores internos.
   }
 
   if (!respuesta.ok) {
@@ -47,9 +55,9 @@ async function solicitar(ruta, opciones = {}) {
 }
 
 
-// ============================================
-// AUTENTICACIÓN CON ROBLE
-// ============================================
+// =====================================================
+// 2. INICIAR SESIÓN
+// =====================================================
 
 export function iniciarSesion(email, password) {
   return solicitar("/auth/login", {
@@ -57,15 +65,63 @@ export function iniciarSesion(email, password) {
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({
+      email,
+      password,
+    }),
   });
 }
 
+
+// =====================================================
+// 3. REGISTRAR USUARIO
+// =====================================================
+
+export function registrarUsuario(name, email, password) {
+  return solicitar("/auth/registro", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name,
+      email,
+      password,
+    }),
+  });
+}
+
+
+// =====================================================
+// 4. VERIFICAR CORREO
+// =====================================================
+
+export function verificarCorreo(email, code) {
+  return solicitar("/auth/verificar-correo", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email,
+      code,
+    }),
+  });
+}
+
+
+// =====================================================
+// 5. CONSULTAR SESIÓN
+// =====================================================
 
 export function consultarSesion() {
   return solicitar("/auth/yo");
 }
 
+
+// =====================================================
+// 6. CERRAR SESIÓN
+// =====================================================
 
 export async function cerrarSesion() {
   const sesion = await consultarSesion();
@@ -79,9 +135,53 @@ export async function cerrarSesion() {
 }
 
 
-// ============================================
-// CONSULTAR PERSONA
-// ============================================
+// =====================================================
+// 7. CONSULTAR USUARIOS
+// =====================================================
+
+export function consultarUsuarios(pagina = 1, limite = 20) {
+  const parametros = new URLSearchParams({
+    pagina: String(pagina),
+    limite: String(limite),
+  });
+
+  return solicitar(
+    `/auth/usuarios?${parametros.toString()}`
+  );
+}
+
+
+// =====================================================
+// 8. CAMBIAR ROL DE UN USUARIO
+// =====================================================
+
+export async function cambiarRolUsuario(usuarioId, rol) {
+  const sesion = await consultarSesion();
+
+  if (!sesion.csrf_token) {
+    throw new Error(
+      "No se pudo obtener el token de seguridad."
+    );
+  }
+
+  const id = encodeURIComponent(usuarioId);
+
+  return solicitar(`/auth/usuarios/${id}/rol`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": sesion.csrf_token,
+    },
+    body: JSON.stringify({
+      rol,
+    }),
+  });
+}
+
+
+// =====================================================
+// 9. CONSULTAR PERSONA
+// =====================================================
 
 export function consultarPersona(tipoDocumento, numeroDocumento) {
   const numero = encodeURIComponent(numeroDocumento);
@@ -93,11 +193,14 @@ export function consultarPersona(tipoDocumento, numeroDocumento) {
 }
 
 
-// ============================================
-// ELIMINAR PERSONA
-// ============================================
+// =====================================================
+// 10. ELIMINAR PERSONA
+// =====================================================
 
-export async function eliminarPersona(tipoDocumento, numeroDocumento) {
+export async function eliminarPersona(
+  tipoDocumento,
+  numeroDocumento
+) {
   const numero = encodeURIComponent(numeroDocumento);
   const tipo = encodeURIComponent(tipoDocumento);
 
@@ -115,9 +218,9 @@ export async function eliminarPersona(tipoDocumento, numeroDocumento) {
 }
 
 
-// ============================================
-// CONSULTAS INTELIGENTES
-// ============================================
+// =====================================================
+// 11. CONSULTAS INTELIGENTES
+// =====================================================
 
 export async function consultarIA(pregunta) {
   const texto = pregunta.trim();
@@ -128,7 +231,6 @@ export async function consultarIA(pregunta) {
     );
   }
 
-  // Obtener el token CSRF de la sesión de Roble.
   const sesion = await consultarSesion();
 
   if (!sesion.csrf_token) {
@@ -137,7 +239,6 @@ export async function consultarIA(pregunta) {
     );
   }
 
-  // La Gateway verificará la sesión y el token CSRF.
   return solicitar("/consultas-ia", {
     method: "POST",
     headers: {
