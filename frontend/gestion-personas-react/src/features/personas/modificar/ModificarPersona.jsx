@@ -1,6 +1,7 @@
 
 import {  useEffect, useRef, useState } from "react";
 import "./ModificarPersona.css";
+import FotoPersona from "../../../components/FotoPersona.jsx";
 
 const LIMITE_FOTO = 2 * 1024 * 1024;
 
@@ -8,6 +9,8 @@ export default function ModificarPersona() {
   const [tipoDocumento, setTipoDocumento] = useState("Cédula");
   const [numeroDocumento, setNumeroDocumento] = useState("");
   const [persona, setPersona] = useState(null);
+  // Permite recargar la fotografía después de modificarla.
+  const [versionFoto, setVersionFoto] = useState(0);
 
   // Tipo original para identificar el registro en PostgreSQL
   const [tipoDocOriginal, setTipoDocOriginal] = useState("");
@@ -229,6 +232,8 @@ export default function ModificarPersona() {
       setTipoDocOriginal(actualizada?.tipo_documento ?? nuevoTipo);
       setTipoDocumento(actualizada?.tipo_documento ?? nuevoTipo);
       reiniciarFoto();
+      // Volver a consultar la fotografía guardada.
+      setVersionFoto((version) => version + 1);
       setError(false);
       setMensaje("Persona modificada correctamente en PostgreSQL.");
     } catch (err) {
@@ -247,7 +252,7 @@ export default function ModificarPersona() {
       <form className="modificar-buscador" onSubmit={buscarPersona}>
         <div className="modificar-grid">
           <label>
-            Tipo de documento (búsqueda)
+            Tipo de documento
             <select value={tipoDocumento} onChange={(e) => {
               setTipoDocumento(e.target.value);
               setPersona(null);
@@ -325,51 +330,89 @@ export default function ModificarPersona() {
             </label>
           </div>
 
+          
           <div className="modificar-foto-panel">
             <h4>Fotografía de la persona</h4>
-            {persona.foto_ruta ? (
-              <p>Esta persona tiene una fotografía guardada.</p>
-            ) : persona.foto_ruta === null ? (
-              <p>Esta persona no tiene fotografía.</p>
-            ) : (
-              <p>El servicio de consulta todavía no informa si tiene fotografía.</p>
-            )}
-            <p className="modificar-foto-ayuda">
-              Podrás ver la fotografía actual cuando agreguemos su ruta protegida de lectura.
-              Por ahora puedes elegir conservar, reemplazar o quitar la imagen asociada.
-            </p>
 
-            <label>Nueva fotografía (opcional)
-              <input ref={inputFoto} type="file" name="fotografia"
-                accept="image/jpeg,image/png" onChange={cambiarFoto} disabled={cargando} />
-              <small>JPG o PNG, máximo 2 MB.</small>
+            {/* Foto actualmente guardada en PostgreSQL */}
+            <FotoPersona
+              persona={persona}
+              tipoDocumento={tipoDocOriginal}
+              version={versionFoto}
+            />
+
+            {/* Selector para reemplazar la fotografía */}
+            <label>
+              Nueva fotografía (opcional)
+
+              <input
+                ref={inputFoto}
+                type="file"
+                name="fotografia"
+                accept="image/jpeg,image/png"
+                onChange={cambiarFoto}
+                disabled={cargando}
+              />
+
+              <small>
+                JPG o PNG, máximo 2 MB.
+              </small>
             </label>
+
+            {/* Vista previa de fotografía nueva */}
             {vistaPrevia && accionFoto === "reemplazar" && (
               <div className="modificar-foto-vista">
-                <img src={vistaPrevia} alt="Vista previa de la nueva fotografía" />
-                <span>Se reemplazará la fotografía al guardar los cambios.</span>
+                <img
+                  src={vistaPrevia}
+                  alt="Vista previa de la nueva fotografía"
+                />
+
+                <span>
+                  Se reemplazará la fotografía al guardar los cambios.
+                </span>
               </div>
             )}
+
+            {/* Aviso al quitar fotografía */}
             {accionFoto === "quitar" && (
               <p className="modificar-foto-alerta">
-                Al guardar se quitará la fotografía asociada a esta persona.
+                Al guardar se quitará la fotografía
+                asociada a esta persona.
               </p>
             )}
+
+            {/* Acciones */}
             <div className="modificar-foto-acciones">
-              <button type="button" onClick={reiniciarFoto} disabled={cargando}>
+
+              <button
+                type="button"
+                onClick={reiniciarFoto}
+                disabled={cargando}
+              >
                 Conservar fotografía
               </button>
-              <button type="button" onClick={() => {
-                setAccionFoto("quitar");
-                setFotoNueva(null);
-                if (inputFoto.current) inputFoto.current.value = "";
-              }} disabled={cargando}>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setAccionFoto("quitar");
+                  setFotoNueva(null);
+
+                  if (inputFoto.current) {
+                    inputFoto.current.value = "";
+                  }
+                }}
+                disabled={cargando}
+              >
                 Quitar fotografía
               </button>
+
             </div>
+
             <p className="modificar-foto-accion">
               Acción seleccionada: <strong>{accionFoto}</strong>
             </p>
+
           </div>
 
           <button type="submit" className="modificar-boton" disabled={cargando}>

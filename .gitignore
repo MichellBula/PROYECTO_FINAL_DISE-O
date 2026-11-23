@@ -37,3 +37,5 @@ frontend/build/
 .idea/
 .DS_Store
 Thumbs.db
+
+/frontend/gestion-personas-react/dist/

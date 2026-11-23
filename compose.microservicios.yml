@@ -22,9 +22,13 @@ services:
     environment:
       PGHOST: db
       PGPORT: "5432"
+      PERSONAS_FOTOS_DIR: /data/fotografias
 
     volumes:
-      - ./backend/services/autenticacion/.env:/app/backend/services/autenticacion/.env:ro
+      - ./backend/services/consultar_persona/.env:/app/backend/services/consultar_persona/.env:ro
+
+      # Lectura de las fotografías guardadas
+      - ./uploads:/data/fotografias:ro
 
     ports:
       - "127.0.0.1:8001:8001"
@@ -52,9 +56,12 @@ services:
     environment:
       PGHOST: db
       PGPORT: "5432"
+      PERSONAS_FOTOS_DIR: /data/fotografias
 
     volumes:
       - ./backend/services/consultar_persona/.env:/app/backend/services/consultar_persona/.env:ro
+      # Lectura de las fotografías guardadas
+      - ./uploads:/data/fotografias:ro
 
     ports:
       - "127.0.0.1:8000:8000"
