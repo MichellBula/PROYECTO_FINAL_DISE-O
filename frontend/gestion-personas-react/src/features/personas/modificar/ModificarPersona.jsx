@@ -1,6 +1,8 @@
 
-import { useState } from "react";
+import {  useEffect, useRef, useState } from "react";
 import "./ModificarPersona.css";
+
+const LIMITE_FOTO = 2 * 1024 * 1024;
 
 export default function ModificarPersona() {
   const [tipoDocumento, setTipoDocumento] = useState("Cédula");
@@ -14,6 +16,12 @@ export default function ModificarPersona() {
   const [error, setError] = useState(false);
   const [cargando, setCargando] = useState(false);
 
+  const [accionFoto, setAccionFoto] = useState("conservar");
+  const [fotoNueva, setFotoNueva] = useState(null);
+  const [vistaPrevia, setVistaPrevia] = useState("");
+  const inputFoto = useRef(null);
+
+
   // Fecha actual en horario local
   const fechaActual = new Date();
 
@@ -23,630 +31,354 @@ export default function ModificarPersona() {
     String(fechaActual.getDate()).padStart(2, "0"),
   ].join("-");
 
+  // MANEJO DE FOTO
+    useEffect(() => {
+    if (!fotoNueva) {
+      setVistaPrevia("");
+      return;
+    }
+    const url = URL.createObjectURL(fotoNueva);
+    setVistaPrevia(url);
+    return () => URL.revokeObjectURL(url);
+  }, [fotoNueva]);
+
+  function reiniciarFoto() {
+    setAccionFoto("conservar");
+    setFotoNueva(null);
+    if (inputFoto.current) inputFoto.current.value = "";
+  }
+
+  function cambiarFoto(evento) {
+    const archivo = evento.target.files?.[0] ?? null;
+    if (!archivo) return;
+    setMensaje("");
+    setError(false);
+
+    if (!["image/jpeg", "image/png"].includes(archivo.type)) {
+      setError(true);
+      setMensaje("Selecciona una fotografía JPG o PNG.");
+      reiniciarFoto();
+      return;
+    }
+    if (archivo.size === 0 || archivo.size > LIMITE_FOTO) {
+      setError(true);
+      setMensaje("La fotografía no puede estar vacía ni superar 2 MB.");
+      reiniciarFoto();
+      return;
+    }
+
+    setFotoNueva(archivo);
+    setAccionFoto("reemplazar");
+  }
+
   // ==================================================
   // 1. BUSCAR PERSONA
   // ==================================================
 
   async function buscarPersona(evento) {
     evento.preventDefault();
-
     setPersona(null);
     setMensaje("");
     setError(false);
-    setCargando(true);
+    reiniciarFoto();
 
     if (!/^[0-9]{1,10}$/.test(numeroDocumento)) {
       setError(true);
       setMensaje("El documento debe tener entre 1 y 10 dígitos.");
-      setCargando(false);
       return;
     }
 
+    setCargando(true);
     try {
-      // Ruta pública establecida en el documento.
+      // Se conserva el contrato actual de la API Gateway:
+      // GET /api/personas/{numero}?tipo_documento={tipo}
       const numero = encodeURIComponent(numeroDocumento);
       const tipo = encodeURIComponent(tipoDocumento);
-
-      const url = `/api/personas/${numero}?tipo_documento=${tipo}`;
-
-      const respuesta = await fetch(url, {
-        method: "GET",
-        credentials: "include",
-      });
-
+      const respuesta = await fetch(
+        `/api/personas/${numero}?tipo_documento=${tipo}`,
+        { credentials: "include" }
+      );
       const resultado = await respuesta.json().catch(() => null);
-
       if (!respuesta.ok) {
-        if (respuesta.status === 401) {
-          throw new Error(
-            "Tu sesión ha expirado. Inicia sesión nuevamente."
-          );
-        }
-
-        if (respuesta.status === 403) {
-          throw new Error(
-            "No tienes autorización para consultar esta persona."
-          );
-        }
-
-        if (respuesta.status === 404) {
-          throw new Error(
-            "No se encontró ninguna persona con ese documento."
-          );
-        }
-
         throw new Error(
-          typeof resultado?.detail === "string"
-            ? resultado.detail
-            : `Error al buscar la persona (${respuesta.status}).`
+          respuesta.status === 404
+            ? "No se encontró una persona con ese documento."
+            : typeof resultado?.detail === "string"
+              ? resultado.detail
+              : `Error en la búsqueda (${respuesta.status}).`
         );
       }
 
-      // Obtener los datos de la persona
-      const personaEncontrada = resultado?.persona ?? resultado;
-
-      if (
-        !personaEncontrada?.tipo_documento ||
-        !personaEncontrada?.numero_documento
-      ) {
-        throw new Error(
-          "El microservicio de consulta devolvió datos incompletos."
-        );
+      const encontrada = resultado?.persona ?? resultado;
+      if (!encontrada?.tipo_documento || !encontrada?.numero_documento) {
+        throw new Error("El servicio devolvió datos incompletos de la persona.");
       }
-
-      setPersona(personaEncontrada);
-
-      // Guardar el tipo original para localizar el registro
-      setTipoDocOriginal(personaEncontrada.tipo_documento);
-
-      setNumeroDocumento(
-        String(personaEncontrada.numero_documento)
-      );
-
-      setMensaje(
-        "Persona encontrada. Puedes editar sus datos."
-      );
-
-    } catch (error) {
-      console.error("Error al buscar persona:", error);
-
+      setPersona(encontrada);
+      setTipoDocOriginal(encontrada.tipo_documento);
+      setNumeroDocumento(String(encontrada.numero_documento));
+      setMensaje("Persona encontrada. Puedes editar sus datos y su fotografía.");
+    } catch (err) {
       setError(true);
-      setMensaje(
-        error instanceof Error
-          ? error.message
-          : "No se pudo conectar con la API Gateway."
-      );
-
+      setMensaje(err instanceof Error ? err.message : "No se pudo consultar la persona.");
     } finally {
       setCargando(false);
     }
   }
 
-  // ==================================================
-  // ACTUALIZAR CAMPOS DEL FORMULARIO
-  // ==================================================
-
   function actualizarCampo(evento) {
     const { name, value } = evento.target;
-
-    setPersona((anterior) => ({
-      ...anterior,
-      [name]: value,
-    }));
+    setPersona((anterior) => ({ ...anterior, [name]: value }));
   }
-
-  // ==================================================
-  // 2. GUARDAR MODIFICACIONES
-  // ==================================================
 
   async function manejarModificacion(evento) {
     evento.preventDefault();
-
-    if (!persona) return;
+    if (!persona || cargando) return;
 
     const formulario = evento.currentTarget;
-    const formData = new FormData(formulario);
-
-    const obtener = (campo) =>
-      String(formData.get(campo) ?? "").trim();
-
-    // Datos ingresados en el formulario
+    const campos = new FormData(formulario);
+    const obtener = (nombre) => String(campos.get(nombre) ?? "").trim();
     const nuevoTipo = obtener("tipo_documento");
     const primerNombre = obtener("primer_nombre");
-    const segundoNombre = obtener("segundo_nombre");
     const apellidos = obtener("apellidos");
-    const fecha = obtener("fecha_nacimiento");
-    const genero = obtener("genero");
-    const correo = obtener("correo");
     const celular = obtener("celular");
-    const foto = formData.get("fotografia");
 
     setMensaje("");
     setError(false);
 
-    // ==================================================
-    // VALIDACIONES
-    // ==================================================
-
-    if (
-      !["Cédula", "Tarjeta de identidad"].includes(nuevoTipo)
-    ) {
-      setError(true);
-      setMensaje("Selecciona un tipo de documento válido.");
-      return;
-    }
-
-    if (
-      !primerNombre ||
-      primerNombre.length > 30 ||
-      /[0-9]/.test(primerNombre)
-    ) {
+    if (!primerNombre || primerNombre.length > 30 || /\d/.test(primerNombre)) {
       setError(true);
       setMensaje("El primer nombre no es válido.");
       return;
     }
-
-    if (
-      segundoNombre &&
-      (segundoNombre.length > 30 ||
-        /[0-9]/.test(segundoNombre))
-    ) {
-      setError(true);
-      setMensaje("El segundo nombre no es válido.");
-      return;
-    }
-
-    if (
-      !apellidos ||
-      apellidos.length > 60 ||
-      /[0-9]/.test(apellidos)
-    ) {
+    if (!apellidos || apellidos.length > 60 || /\d/.test(apellidos)) {
       setError(true);
       setMensaje("Los apellidos no son válidos.");
       return;
     }
-
-    if (!fecha || fecha > hoy) {
-      setError(true);
-      setMensaje("Introduce una fecha de nacimiento válida.");
-      return;
-    }
-
-    if (
-      ![
-        "Femenino",
-        "Masculino",
-        "No binario",
-        "Prefiero no reportar",
-      ].includes(genero)
-    ) {
-      setError(true);
-      setMensaje("Selecciona un género válido.");
-      return;
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
-      setError(true);
-      setMensaje("Introduce un correo electrónico válido.");
-      return;
-    }
-
     if (!/^[0-9]{10}$/.test(celular)) {
       setError(true);
       setMensaje("El celular debe tener exactamente 10 dígitos.");
       return;
     }
-
-    // Validar fotografía opcional
-    if (foto && foto.size > 0) {
-      if (!["image/jpeg", "image/png"].includes(foto.type)) {
-        setError(true);
-        setMensaje("La fotografía debe ser JPG o PNG.");
-        return;
-      }
-
-      if (foto.size > 2 * 1024 * 1024) {
-        setError(true);
-        setMensaje("La fotografía no debe superar los 2 MB.");
-        return;
-      }
+    if (accionFoto === "reemplazar" && !fotoNueva) {
+      setError(true);
+      setMensaje("Selecciona una fotografía nueva.");
+      return;
     }
 
-    // ==================================================
-    // PREPARAR FORMDATA PARA FASTAPI
-    // ==================================================
-
     const datosEnvio = new FormData();
-
-    datosEnvio.append("tipo_documento", nuevoTipo);
-    datosEnvio.append("primer_nombre", primerNombre);
-    datosEnvio.append("segundo_nombre", segundoNombre || "");
-    datosEnvio.append("apellidos", apellidos);
-    datosEnvio.append("fecha_nacimiento", fecha);
-    datosEnvio.append("genero", genero);
-    datosEnvio.append("correo", correo);
-    datosEnvio.append("celular", celular);
-
-    // Adjuntar fotografía solo si se seleccionó una nueva
-    if (foto && foto.size > 0) {
-      datosEnvio.append("foto", foto);
+    for (const nombre of [
+      "tipo_documento", "primer_nombre", "segundo_nombre", "apellidos",
+      "fecha_nacimiento", "genero", "correo", "celular",
+    ]) {
+      datosEnvio.append(nombre, obtener(nombre));
+    }
+    datosEnvio.append("accion_foto", accionFoto);
+    if (accionFoto === "reemplazar") {
+      datosEnvio.append("foto", fotoNueva);
     }
 
     setCargando(true);
-
     try {
-      // ==================================================
-      // OBTENER TOKEN CSRF DE ROBLE
-      // ==================================================
-
+      // El proyecto ya usa sesión Roble + CSRF para operaciones de escritura.
       const respuestaSesion = await fetch("/api/auth/yo", {
-        method: "GET",
         credentials: "include",
       });
-
       if (!respuestaSesion.ok) {
-        throw new Error(
-          "Tu sesión no es válida o ha expirado. Inicia sesión nuevamente."
-        );
+        throw new Error("Tu sesión ha expirado. Inicia sesión nuevamente.");
+      }
+      const sesion = await respuestaSesion.json();
+      if (!sesion.csrf_token) {
+        throw new Error("No se pudo obtener el token CSRF de la sesión.");
       }
 
-      const datosSesion = await respuestaSesion.json();
-
-      if (!datosSesion.csrf_token) {
-        throw new Error(
-          "No se pudo obtener el token de seguridad de la sesión."
-        );
-      }
-
-      // ==================================================
-      // ENVIAR MODIFICACIÓN A LA API GATEWAY
-      // ==================================================
-
-      // Identificar el registro por el documento original
+      // La Gateway recibe tipo original como parámetro de consulta.
       const numero = encodeURIComponent(numeroDocumento);
       const tipoOriginal = encodeURIComponent(tipoDocOriginal);
-
-      const url =
-        `/api/personas/${numero}?tipo_documento=${tipoOriginal}`;
-
+      const url = `/api/personas/${numero}?tipo_documento=${tipoOriginal}`;
       const respuesta = await fetch(url, {
         method: "PUT",
         credentials: "include",
-
-        headers: {
-          "X-CSRF-Token": datosSesion.csrf_token,
-        },
-
-        // El navegador configura automáticamente
-        // Content-Type para multipart/form-data.
+        headers: { "X-CSRF-Token": sesion.csrf_token },
+        // No incluir Content-Type: el navegador añade boundary de multipart.
         body: datosEnvio,
       });
-
       const resultado = await respuesta.json().catch(() => null);
-
-      // ==================================================
-      // MANEJO DE ERRORES
-      // ==================================================
-
       if (!respuesta.ok) {
-        if (respuesta.status === 401) {
-          throw new Error(
-            "Tu sesión ha expirado. Inicia sesión nuevamente."
-          );
-        }
-
-        if (respuesta.status === 403) {
-          throw new Error(
-            "La modificación fue rechazada por seguridad. Verifica tu sesión y tus permisos."
-          );
-        }
-
+        if (respuesta.status === 401) throw new Error("Tu sesión ha expirado.");
+        if (respuesta.status === 403) throw new Error("No tienes permisos para modificar personas.");
+        if (respuesta.status === 409) throw new Error("Ya existe otra persona con ese documento.");
         if (respuesta.status === 404) {
-          throw new Error(
-            typeof resultado?.detail === "string"
-              ? resultado.detail
-              : "No se encontró el registro solicitado."
-          );
+          throw new Error(`HTTP 404: ${resultado?.detail ?? "Ruta o persona no encontrada"}`);
         }
-
-        if (respuesta.status === 409) {
-          throw new Error(
-            "Ya existe una persona con ese tipo y número de documento."
-          );
-        }
-
-        if (respuesta.status === 422) {
-          const detalle = resultado?.detail;
-
-          const descripcion = Array.isArray(detalle)
+        const detalle = resultado?.detail;
+        throw new Error(
+          Array.isArray(detalle)
             ? detalle.map((item) => item.msg).join(". ")
             : typeof detalle === "string"
               ? detalle
-              : "Los datos no cumplen las validaciones del servidor.";
-
-          throw new Error(descripcion);
-        }
-
-        if (respuesta.status === 503) {
-          throw new Error(
-            "El servicio de modificación no está disponible temporalmente."
-          );
-        }
-
-        throw new Error(
-          typeof resultado?.detail === "string"
-            ? resultado.detail
-            : `Error al modificar la persona (${respuesta.status}).`
+              : `Error al guardar (HTTP ${respuesta.status}).`
         );
       }
 
-      // ==================================================
-      // MODIFICACIÓN EXITOSA
-      // ==================================================
-
-      setError(false);
-
-      setMensaje(
-        "Persona modificada correctamente en PostgreSQL."
-      );
-
-      // El tipo original ahora será el nuevo tipo
-      setTipoDocOriginal(nuevoTipo);
-
-      // Actualizar la búsqueda si cambió el tipo
-      setTipoDocumento(nuevoTipo);
-
-      setPersona((anterior) => ({
-        ...anterior,
-        tipo_documento: nuevoTipo,
-      }));
-
-      // Limpiar únicamente la selección de fotografía
-      const campoFoto = formulario.elements.namedItem(
-        "fotografia"
-      );
-
-      if (campoFoto) {
-        campoFoto.value = "";
+      const actualizada = resultado?.persona;
+      if (actualizada) setPersona(actualizada);
+      else if (accionFoto === "quitar") {
+        setPersona((anterior) => ({ ...anterior, foto_ruta: null }));
       }
-
-    } catch (error) {
-      console.error("Error al modificar persona:", error);
-
+      setTipoDocOriginal(actualizada?.tipo_documento ?? nuevoTipo);
+      setTipoDocumento(actualizada?.tipo_documento ?? nuevoTipo);
+      reiniciarFoto();
+      setError(false);
+      setMensaje("Persona modificada correctamente en PostgreSQL.");
+    } catch (err) {
       setError(true);
-
-      setMensaje(
-        error instanceof Error
-          ? error.message
-          : "No se pudo conectar con la API Gateway."
-      );
-
+      setMensaje(err instanceof Error ? err.message : "No se pudo guardar la modificación.");
     } finally {
       setCargando(false);
     }
   }
 
-  // ==================================================
-  // INTERFAZ
-  // ==================================================
-
   return (
     <div className="modificar-persona">
       <h3>Modificar persona</h3>
+      <p>Busca una persona, edita su información y decide qué hacer con su fotografía.</p>
 
-      <p>
-        Primero busca una persona por su documento.
-        Después podrás editar su información.
-      </p>
-
-      {/* BUSCADOR */}
-      <form
-        className="modificar-buscador"
-        onSubmit={buscarPersona}
-      >
+      <form className="modificar-buscador" onSubmit={buscarPersona}>
         <div className="modificar-grid">
-
           <label>
-            Tipo de documento (Búsqueda)
-            <select
-              value={tipoDocumento}
-              onChange={(evento) => {
-                setTipoDocumento(evento.target.value);
-                setPersona(null);
-                setMensaje("");
-              }}
-            >
+            Tipo de documento (búsqueda)
+            <select value={tipoDocumento} onChange={(e) => {
+              setTipoDocumento(e.target.value);
+              setPersona(null);
+              reiniciarFoto();
+            }}>
               <option value="Cédula">Cédula</option>
-              <option value="Tarjeta de identidad">
-                Tarjeta de identidad
-              </option>
+              <option value="Tarjeta de identidad">Tarjeta de identidad</option>
             </select>
           </label>
-
           <label>
             Número de documento
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]{1,10}"
-              maxLength={10}
-              value={numeroDocumento}
-              onChange={(evento) => {
-                setNumeroDocumento(
-                  evento.target.value.replace(/\D/g, "")
-                );
+            <input type="text" inputMode="numeric" pattern="[0-9]{1,10}"
+              maxLength={10} value={numeroDocumento} required
+              onChange={(e) => {
+                setNumeroDocumento(e.target.value.replace(/\D/g, ""));
                 setPersona(null);
-                setMensaje("");
+                reiniciarFoto();
               }}
-              placeholder="Ej. 1234567890"
-              required
-            />
+              placeholder="Ej. 1234567890" />
           </label>
-
         </div>
-
-        <button
-          type="submit"
-          className="modificar-boton"
-          disabled={cargando}
-        >
-          {cargando && !persona
-            ? "Buscando..."
-            : "Buscar persona"}
+        <button type="submit" className="modificar-boton" disabled={cargando}>
+          {cargando && !persona ? "Buscando..." : "Buscar persona"}
         </button>
       </form>
 
-      {/* FORMULARIO DE EDICIÓN */}
       {persona && (
         <form onSubmit={manejarModificacion}>
           <h3>Información de la persona</h3>
-
           <div className="modificar-grid">
-
-            <label>
-              Número de documento
-              <input
-                value={persona.numero_documento}
-                disabled
-                readOnly
-              />
+            <label>Número de documento
+              <input value={persona.numero_documento || ""} readOnly />
             </label>
-
-            <label>
-              Tipo de documento *
-              <select
-                name="tipo_documento"
-                value={persona.tipo_documento || "Cédula"}
-                onChange={actualizarCampo}
-                required
-              >
+            <label>Tipo de documento *
+              <select name="tipo_documento" value={persona.tipo_documento || "Cédula"}
+                onChange={actualizarCampo} required>
                 <option value="Cédula">Cédula</option>
-                <option value="Tarjeta de identidad">
-                  Tarjeta de identidad
-                </option>
+                <option value="Tarjeta de identidad">Tarjeta de identidad</option>
               </select>
             </label>
-
-            <label>
-              Primer nombre *
-              <input
-                name="primer_nombre"
-                value={persona.primer_nombre || ""}
-                onChange={actualizarCampo}
-                required
-                maxLength={30}
-              />
+            <label>Primer nombre *
+              <input name="primer_nombre" value={persona.primer_nombre || ""}
+                onChange={actualizarCampo} required maxLength={30} />
             </label>
-
-            <label>
-              Segundo nombre
-              <input
-                name="segundo_nombre"
-                value={persona.segundo_nombre || ""}
-                onChange={actualizarCampo}
-                maxLength={30}
-              />
+            <label>Segundo nombre
+              <input name="segundo_nombre" value={persona.segundo_nombre || ""}
+                onChange={actualizarCampo} maxLength={30} />
             </label>
-
-            <label>
-              Apellidos *
-              <input
-                name="apellidos"
-                value={persona.apellidos || ""}
-                onChange={actualizarCampo}
-                required
-                maxLength={60}
-              />
+            <label>Apellidos *
+              <input name="apellidos" value={persona.apellidos || ""}
+                onChange={actualizarCampo} required maxLength={60} />
             </label>
-
-            <label>
-              Fecha de nacimiento *
-              <input
-                type="date"
-                name="fecha_nacimiento"
-                value={persona.fecha_nacimiento || ""}
-                onChange={actualizarCampo}
-                max={hoy}
-                required
-              />
+            <label>Fecha de nacimiento *
+              <input type="date" name="fecha_nacimiento"
+                value={String(persona.fecha_nacimiento || "").slice(0, 10)}
+                onChange={actualizarCampo} max={hoy} required />
             </label>
-
-            <label>
-              Género *
-              <select
-                name="genero"
-                value={persona.genero || ""}
-                onChange={actualizarCampo}
-                required
-              >
+            <label>Género *
+              <select name="genero" value={persona.genero || ""}
+                onChange={actualizarCampo} required>
                 <option value="Femenino">Femenino</option>
                 <option value="Masculino">Masculino</option>
                 <option value="No binario">No binario</option>
-                <option value="Prefiero no reportar">
-                  Prefiero no reportar
-                </option>
+                <option value="Prefiero no reportar">Prefiero no reportar</option>
               </select>
             </label>
-
-            <label>
-              Correo electrónico *
-              <input
-                type="email"
-                name="correo"
-                value={persona.correo || ""}
-                onChange={actualizarCampo}
-                maxLength={120}
-                required
-              />
+            <label>Correo electrónico *
+              <input type="email" name="correo" value={persona.correo || ""}
+                onChange={actualizarCampo} required maxLength={120} />
             </label>
-
-            <label>
-              Celular *
-              <input
-                type="tel"
-                name="celular"
-                value={persona.celular || ""}
-                onChange={actualizarCampo}
-                inputMode="numeric"
-                pattern="[0-9]{10}"
-                maxLength={10}
-                required
-              />
+            <label>Celular *
+              <input type="tel" name="celular" value={persona.celular || ""}
+                onChange={actualizarCampo} inputMode="numeric" pattern="[0-9]{10}"
+                maxLength={10} required />
             </label>
-
-            <label>
-              Nueva fotografía (opcional)
-              <input
-                type="file"
-                name="fotografia"
-                accept="image/jpeg,image/png"
-              />
-              <small>
-                Formato JPG o PNG. Tamaño máximo: 2 MB.
-              </small>
-            </label>
-
           </div>
 
-          <button
-            type="submit"
-            className="modificar-boton"
-            disabled={cargando}
-          >
-            {cargando
-              ? "Guardando cambios..."
-              : "Guardar cambios"}
+          <div className="modificar-foto-panel">
+            <h4>Fotografía de la persona</h4>
+            {persona.foto_ruta ? (
+              <p>Esta persona tiene una fotografía guardada.</p>
+            ) : persona.foto_ruta === null ? (
+              <p>Esta persona no tiene fotografía.</p>
+            ) : (
+              <p>El servicio de consulta todavía no informa si tiene fotografía.</p>
+            )}
+            <p className="modificar-foto-ayuda">
+              Podrás ver la fotografía actual cuando agreguemos su ruta protegida de lectura.
+              Por ahora puedes elegir conservar, reemplazar o quitar la imagen asociada.
+            </p>
+
+            <label>Nueva fotografía (opcional)
+              <input ref={inputFoto} type="file" name="fotografia"
+                accept="image/jpeg,image/png" onChange={cambiarFoto} disabled={cargando} />
+              <small>JPG o PNG, máximo 2 MB.</small>
+            </label>
+            {vistaPrevia && accionFoto === "reemplazar" && (
+              <div className="modificar-foto-vista">
+                <img src={vistaPrevia} alt="Vista previa de la nueva fotografía" />
+                <span>Se reemplazará la fotografía al guardar los cambios.</span>
+              </div>
+            )}
+            {accionFoto === "quitar" && (
+              <p className="modificar-foto-alerta">
+                Al guardar se quitará la fotografía asociada a esta persona.
+              </p>
+            )}
+            <div className="modificar-foto-acciones">
+              <button type="button" onClick={reiniciarFoto} disabled={cargando}>
+                Conservar fotografía
+              </button>
+              <button type="button" onClick={() => {
+                setAccionFoto("quitar");
+                setFotoNueva(null);
+                if (inputFoto.current) inputFoto.current.value = "";
+              }} disabled={cargando}>
+                Quitar fotografía
+              </button>
+            </div>
+            <p className="modificar-foto-accion">
+              Acción seleccionada: <strong>{accionFoto}</strong>
+            </p>
+          </div>
+
+          <button type="submit" className="modificar-boton" disabled={cargando}>
+            {cargando ? "Guardando cambios..." : "Guardar cambios"}
           </button>
         </form>
       )}
-
       {mensaje && (
-        <p
-          className={
-            error ? "modificar-error" : "modificar-exito"
-          }
-          role="status"
-        >
+        <p className={error ? "modificar-error" : "modificar-exito"} role="status">
           {mensaje}
         </p>
       )}

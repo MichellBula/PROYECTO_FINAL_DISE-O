@@ -6,6 +6,53 @@ export default function CrearPersona() {
   const [mensaje, setMensaje] = useState("");
   const [error, setError] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [fotografia, setFotografia] = useState(null);
+  const [vistaPrevia, setVistaPrevia] = useState("");
+  const fotografiaInputRef = useRef(null);
+
+  // Fotografía
+
+  useEffect(() => {
+    if (!fotografia) {
+      setVistaPrevia("");
+      return;
+    }
+
+    const url = URL.createObjectURL(fotografia);
+    setVistaPrevia(url);
+
+    return () => URL.revokeObjectURL(url);
+  }, [fotografia]);
+
+  function seleccionarFotografia(evento) {
+    const archivo = evento.target.files?.[0] ?? null;
+
+    setMensaje("");
+    setError(false);
+
+    if (!archivo) {
+      setFotografia(null);
+      return;
+    }
+
+    if (!["image/jpeg", "image/png"].includes(archivo.type)) {
+      evento.target.value = "";
+      setFotografia(null);
+      setError(true);
+      setMensaje("La fotografía debe ser JPG o PNG.");
+      return;
+    }
+
+    if (archivo.size === 0 || archivo.size > 2 * 1024 * 1024) {
+      evento.target.value = "";
+      setFotografia(null);
+      setError(true);
+      setMensaje("La fotografía no debe estar vacía ni superar los 2 MB.");
+      return;
+    }
+
+    setFotografia(archivo);
+  }
 
   // Fecha actual en horario local
   const fechaActual = new Date();
@@ -167,17 +214,36 @@ export default function CrearPersona() {
         );
       }
 
-      // 2. Registrar la persona a través de la Gateway.
+      // 2. Con foto enviamos multipart; sin foto mantenemos JSON.
+      // Nunca configurar Content-Type manualmente con FormData.
+
+      let cuerpo;
+
+      const encabezados = {
+        "X-CSRF-Token": datosSesion.csrf_token,
+      };
+
+      if (fotografia) {
+        const datosConFoto = new FormData();
+
+        Object.entries(datosPersona).forEach(([clave, valor]) => {
+          datosConFoto.append(clave, valor ?? "");
+        });
+
+        datosConFoto.append("fotografia", fotografia);
+        cuerpo = datosConFoto;
+
+      } else {
+        encabezados["Content-Type"] = "application/json";
+        cuerpo = JSON.stringify(datosPersona);
+      }
+
+      // 3. Registrar la persona a través de la Gateway.
       const respuesta = await fetch("/api/personas", {
         method: "POST",
         credentials: "include",
-
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": datosSesion.csrf_token,
-        },
-
-        body: JSON.stringify(datosPersona),
+        headers: encabezados,
+        body: cuerpo,
       });
 
       const resultado = await respuesta
@@ -378,17 +444,41 @@ export default function CrearPersona() {
             />
           </label>
 
-          <label>
-            Fotografía (próximamente)
+          <label className="crear-foto">
+            Fotografía (opcional)
+
             <input
               name="fotografia"
+              ref={fotografiaInputRef}
               type="file"
               accept="image/png,image/jpeg"
-              disabled
+              onChange={seleccionarFotografia}
+              disabled={guardando}
             />
-            <small>
-              La carga de fotografías todavía no está disponible.
-            </small>
+
+            <small>JPG o PNG, máximo 2 MB.</small>
+
+            {vistaPrevia && (
+              <span className="crear-foto-vista">
+                <img
+                  src={vistaPrevia}
+                  alt="Vista previa de fotografía seleccionada"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (fotografiaInputRef.current) {
+                      fotografiaInputRef.current.value = "";
+                    }
+                    setFotografia(null);
+                  }}
+                  disabled={guardando}
+                >
+                  Quitar selección
+                </button>
+              </span>
+            )}
           </label>
 
         </div>

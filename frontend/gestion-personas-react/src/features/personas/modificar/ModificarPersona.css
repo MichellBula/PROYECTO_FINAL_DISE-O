@@ -116,3 +116,21 @@
     padding: 16px;
   }
 }
+
+/* MODIFICAR FOTO */
+.modificar-foto-panel {
+  margin: 22px 0;
+  padding: 18px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+}
+.modificar-foto-panel h4 { margin-top: 0; }
+.modificar-foto-panel label { display: flex; flex-direction: column; gap: 8px; }
+.modificar-foto-vista { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 14px; }
+.modificar-foto-vista img { width: 160px; height: 160px; border: 1px solid #cbd5e1; border-radius: 12px; object-fit: cover; }
+.modificar-foto-acciones { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.modificar-foto-acciones button { border: 1px solid #94a3b8; border-radius: 8px; padding: 8px 12px; background: transparent; color: inherit; cursor: pointer; }
+.modificar-foto-acciones button:disabled { cursor: not-allowed; opacity: 0.5; }
+.modificar-foto-alerta { color: #9f1d1d; font-weight: 600; }
+.modificar-foto-ayuda { font-size: 0.875rem; opacity: 0.8; }
+.modificar-foto-accion { font-size: 0.875rem; }
