@@ -1,5 +1,5 @@
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import "./CrearPersona.css";
 
 export default function CrearPersona() {
@@ -305,7 +305,7 @@ export default function CrearPersona() {
       setError(false);
 
       setMensaje(
-        "Persona registrada correctamente en PostgreSQL."
+        "✅ Persona registrada correctamente en PostgreSQL."
       );
 
       formulario.reset();

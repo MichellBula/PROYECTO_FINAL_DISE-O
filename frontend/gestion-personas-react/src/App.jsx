@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 
 import MenuPrincipal from "./components/MenuPrincipal.jsx";
 
-import FotoPersona from "./components/FotoPersona.jsx";
-
 // Nuevo componente de registro
 import Registro from "./features/autenticacion/Registro.jsx";
 
@@ -441,12 +439,6 @@ export default function App() {
 
           </div>
 
-          {/* Fotografía asignada a la persona consultada */}
-          <FotoPersona
-            persona={persona?.persona ?? persona}
-          />
-
-          {/* Datos que ya mostraba la consulta */}
           <pre>
             {JSON.stringify(persona, null, 2)}
           </pre>
