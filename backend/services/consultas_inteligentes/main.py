@@ -7,13 +7,13 @@ from pydantic import BaseModel, Field
 
 from auth import usuario_autenticado
 from db import registrar_consulta_ia
-from n8n_cliente import enviar_a_n8n
+from n8n_cliente import clasificar_pregunta, enviar_a_n8n
 from recuperacion import recuperar_informacion
 
 
 app = FastAPI(
     title="Microservicio de consultas inteligentes",
-    version="0.2.0",
+    version="0.3.0",
 )
 
 
@@ -35,37 +35,69 @@ def procesar_consulta(
     usuario: dict = Depends(usuario_autenticado),
 ):
     pregunta = consulta.pregunta.strip()
-    pregunta_normalizada = pregunta.lower().strip(" ¿?¡!.")
-
-    # Primera operacion controlada.
-    # No se ejecuta SQL proporcionado por el usuario o la IA.
-    preguntas_permitidas = {
-        "cuantas personas hay registradas": "contar_personas",
-        "cuántas personas hay registradas": "contar_personas",
-    }
-
-    operacion = preguntas_permitidas.get(pregunta_normalizada)
     identificador_usuario = f"roble:{usuario['user_id']}"
 
-    if operacion is None:
+    if not pregunta:
         raise HTTPException(
             status_code=422,
-            detail="Esta pregunta todavia no esta implementada",
+            detail="La pregunta no puede estar vacia",
+        )
+
+    # Gemini identifica la intencion, pero no ejecuta SQL.
+    try:
+        operacion = clasificar_pregunta(pregunta)
+
+    except (httpx.HTTPError, RuntimeError, ValueError) as exc:
+        registrar_consulta_ia(
+            usuario=identificador_usuario,
+            pregunta=pregunta,
+            respuesta="No fue posible clasificar la pregunta.",
+            resultado="ERROR",
+            detalle="Error en el clasificador de n8n",
+        )
+
+        raise HTTPException(
+            status_code=503,
+            detail="No fue posible clasificar la consulta",
+        ) from exc
+
+    # Preguntas fuera del alcance del sistema.
+    if operacion == "NO_RECONOCIDA":
+        raise HTTPException(
+            status_code=422,
+            detail="La pregunta no corresponde a una consulta disponible",
+        )
+
+    # Lista de operaciones habilitadas en esta etapa.
+    # No basta con que Gemini reconozca una operacion:
+    # FastAPI debe autorizar su ejecucion.
+    operaciones_habilitadas = {"contar_personas"}
+
+    if operacion not in operaciones_habilitadas:
+        registrar_consulta_ia(
+            usuario=identificador_usuario,
+            pregunta=pregunta,
+            respuesta="Consulta no autorizada.",
+            resultado="DENEGADO",
+            detalle="Operacion no habilitada",
+        )
+
+        raise HTTPException(
+            status_code=403,
+            detail="Esta operacion no esta habilitada",
         )
 
     # Recuperacion controlada desde PostgreSQL.
     datos = recuperar_informacion(operacion)
     total = datos["total"]
 
-    # Respuesta exacta, calculada por el microservicio.
     respuesta_verificada = (
         f"Actualmente hay {total} "
         "personas registradas en el sistema."
     )
 
     try:
-        # Solo enviamos una pregunta permitida y el conteo.
-        # No enviamos cookies, documentos ni registros personales.
+        # Gemini solo recibe el conteo agregado.
         resultado_n8n = enviar_a_n8n(
             pregunta=pregunta,
             datos={"total": total},
@@ -76,13 +108,10 @@ def procesar_consulta(
 
         respuesta_ia = resultado_n8n.get("respuesta")
 
-        if not isinstance(respuesta_ia, str):
-            raise ValueError("n8n no devolvio una respuesta valida")
+        if not isinstance(respuesta_ia, str) or not respuesta_ia.strip():
+            raise ValueError("Respuesta de n8n vacia o invalida")
 
         respuesta_ia = respuesta_ia.strip()
-
-        if not respuesta_ia:
-            raise ValueError("La respuesta de n8n esta vacia")
 
     except (httpx.HTTPError, RuntimeError, ValueError) as exc:
         registrar_consulta_ia(
@@ -90,16 +119,17 @@ def procesar_consulta(
             pregunta=pregunta,
             respuesta="No fue posible generar la respuesta.",
             resultado="ERROR",
-            detalle="Error en la integracion con n8n",
+            detalle="Error en el procesamiento de n8n",
         )
 
         raise HTTPException(
             status_code=503,
-            detail="No fue posible procesar la consulta inteligente",
+            detail="No fue posible generar la respuesta inteligente",
         ) from exc
 
-    # Comprobacion basica para esta pregunta de conteo.
-    # Evita utilizar una respuesta con cantidades diferentes.
+    # Validacion basica para la operacion de conteo.
+    # Si la IA introduce cantidades diferentes,
+    # utilizamos la respuesta exacta de PostgreSQL.
     numeros = re.findall(r"\d+", respuesta_ia)
 
     if numeros == [str(total)]:
@@ -107,13 +137,12 @@ def procesar_consulta(
     else:
         respuesta_final = respuesta_verificada
 
-    # Registrar la respuesta que realmente recibira el usuario.
     registrar_consulta_ia(
         usuario=identificador_usuario,
         pregunta=pregunta,
         respuesta=respuesta_final,
         resultado="EXITO",
-        detalle=f"Consulta IA con recuperacion: {operacion}",
+        detalle=f"Consulta IA: {operacion}",
     )
 
     return {
