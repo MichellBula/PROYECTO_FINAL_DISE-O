@@ -13,6 +13,7 @@ from psycopg.rows import dict_row
 
 from db import conexion
 from auth import usuario_autenticado
+from gestion_seguridad.estado_servicios import exigir_consulta_habilitada
 
 router_fotografias = APIRouter()
 log = logging.getLogger("consultar_persona.fotografias")
@@ -28,6 +29,7 @@ def obtener_fotografia(
     tipo_documento: str,
     numero_documento: str,
     _usuario: dict = Depends(usuario_autenticado),
+    _disponible: None = Depends(exigir_consulta_habilitada),
 ):
     # Mantiene la validación Roble y la identidad para auditoría.
     # También protege el acceso directo al microservicio.

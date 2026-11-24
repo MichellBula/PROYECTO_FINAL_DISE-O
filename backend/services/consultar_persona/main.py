@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from auth import usuario_autenticado
 from db import conexion, registrar_auditoria
 from fotos import router_fotografias
+from gestion_seguridad.estado_servicios import exigir_consulta_habilitada
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("consultar_persona")
@@ -92,6 +93,7 @@ def consultar_persona(
     tipo_documento: str,
     numero_documento: str,
     _claims: dict = Depends(usuario_autenticado),
+    _disponible: None = Depends(exigir_consulta_habilitada),
 ):
     if tipo_documento not in ("Cédula", "Tarjeta de identidad"):
         raise HTTPException(status_code=422, detail="Tipo de documento no admitido")

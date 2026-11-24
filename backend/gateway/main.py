@@ -10,6 +10,7 @@ Responsabilidades:
 - Comunicarse con los microservicios.
 """
 
+import logging
 import os
 import secrets
 
@@ -17,6 +18,8 @@ from urllib.parse import quote
 from uuid import UUID
 
 import httpx
+import psycopg
+from pydantic import BaseModel, StrictBool
 
 from fastapi import (
     FastAPI,
@@ -27,6 +30,16 @@ from fastapi import (
 )
 
 from gestion_seguridad import obtener_sesion
+from gestion_seguridad.estado_servicios import (
+    cambiar_estado_consulta,
+    obtener_estado_consulta,
+)
+
+logger = logging.getLogger("api_gateway.control_servicios")
+
+
+class CambioEstadoConsulta(BaseModel):
+    habilitado: StrictBool
 
 
 # =====================================================
@@ -105,6 +118,10 @@ PERMISOS = {
     },
 
     "GESTION_USUARIOS": {
+        "ADMINISTRADOR",
+    },
+
+    "CONTROL_SERVICIOS": {
         "ADMINISTRADOR",
     },
 }
@@ -275,7 +292,58 @@ def salud():
 
 
 # =====================================================
-# 8. ADMINISTRACIÓN DE USUARIOS
+# 8. CONTROL ADMINISTRATIVO DEL MICROSERVICIO DE CONSULTA
+# =====================================================
+
+@app.get("/api/admin/servicios/consulta")
+def consultar_estado_servicio(request: Request):
+    verificar_acceso(request, "CONTROL_SERVICIOS")
+
+    try:
+        estado = obtener_estado_consulta()
+    except (psycopg.Error, RuntimeError) as exc:
+        logger.exception("No se pudo leer el estado del servicio de consulta")
+        raise HTTPException(
+            status_code=503,
+            detail="No se pudo consultar el estado del microservicio",
+        ) from exc
+
+    return {
+        "servicio": estado["servicio"],
+        "habilitado": estado["habilitado"],
+        "actualizado_en": estado["actualizado_en"],
+    }
+
+
+@app.patch("/api/admin/servicios/consulta")
+def actualizar_estado_servicio(
+    request: Request,
+    datos: CambioEstadoConsulta,
+):
+    # Esta función verifica rol ADMINISTRADOR y token X-CSRF-Token.
+    administrador = verificar_acceso(request, "CONTROL_SERVICIOS")
+
+    try:
+        estado = cambiar_estado_consulta(
+            habilitado=datos.habilitado,
+            administrador_id=administrador["user_id"],
+        )
+    except (psycopg.Error, RuntimeError, ValueError) as exc:
+        logger.exception("No se pudo cambiar el estado del servicio de consulta")
+        raise HTTPException(
+            status_code=503,
+            detail="No se pudo actualizar el estado del microservicio",
+        ) from exc
+
+    return {
+        "servicio": estado["servicio"],
+        "habilitado": estado["habilitado"],
+        "actualizado_en": estado["actualizado_en"],
+    }
+
+
+# =====================================================
+# 9. ADMINISTRACIÓN DE USUARIOS
 # =====================================================
 
 @app.get("/api/auth/usuarios")

@@ -1,0 +1,143 @@
+.control-servicios {
+  margin-top: 1.6rem;
+  padding: clamp(1.2rem, 3vw, 2rem);
+  border: 1px solid #625a78;
+  border-radius: 20px;
+  background: #383149;
+  color: #f1eefa;
+  box-shadow: 0 12px 28px rgb(19 14 31 / 12%);
+}
+
+.control-servicios-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.control-servicios-indicador {
+  color: #c5b5ee;
+  font-size: .73rem;
+  font-weight: 750;
+  letter-spacing: .075em;
+}
+
+.control-servicios h3 {
+  margin: .6rem 0;
+  color: #f5f1fc;
+  font-size: clamp(1.3rem, 2.3vw, 1.65rem);
+}
+
+.control-servicios p {
+  color: #d7d0e4;
+  line-height: 1.6;
+}
+
+.control-servicios-estado {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  padding: .48rem .85rem;
+  border: 1px solid #807994;
+  border-radius: 999px;
+  background: #514960;
+  color: #f1eefa;
+  font-size: .88rem;
+  font-weight: 700;
+}
+
+.control-servicios-estado.activo {
+  border-color: #367e6a;
+  background: #234f46;
+  color: #a8f4d9;
+}
+
+.control-servicios-estado.inactivo {
+  border-color: #a87b50;
+  background: #5b402e;
+  color: #ffe0b0;
+}
+
+.control-servicios-detalle {
+  margin: 1.3rem 0;
+  padding: .8rem 1.1rem;
+  border-radius: 12px;
+  background: #2d273d;
+}
+
+.control-servicios-detalle p {
+  margin: .35rem 0;
+}
+
+.control-servicios-fecha {
+  font-size: .85rem;
+  opacity: .8;
+}
+
+.control-servicios-error,
+.control-servicios-exito {
+  margin: 1rem 0;
+  padding: .85rem 1rem;
+  border-radius: 10px;
+}
+
+.control-servicios .control-servicios-error {
+  background: #5c293a;
+  color: #ffd5de;
+}
+
+.control-servicios .control-servicios-exito {
+  background: #1e5145;
+  color: #b5fce3;
+}
+
+.control-servicios-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .8rem;
+}
+
+.control-servicios-acciones button {
+  min-height: 44px;
+  padding: .8rem 1.2rem;
+  border-radius: 11px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color .15s ease, transform .15s ease;
+}
+
+.control-servicios-boton.deshabilitar {
+  border: 1px solid #e7ab80;
+  background: #915037;
+  color: #fff;
+}
+
+.control-servicios-boton.habilitar {
+  border: 1px solid #7ce1c5;
+  background: #26755f;
+  color: #fff;
+}
+
+.control-servicios-recargar {
+  border: 1px solid #817794;
+  background: #554d6a;
+  color: #eee7f8;
+}
+
+.control-servicios-acciones button:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.control-servicios-acciones button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.control-servicios .control-servicios-nota {
+  margin: 1.3rem 0 0;
+  font-size: .88rem;
+  color: #bbb3d0;
+}

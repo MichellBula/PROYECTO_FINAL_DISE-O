@@ -507,6 +507,7 @@ def yo(request: Request):
                 "user_id",
                 "email",
                 "name",
+                "rol",
             )
         },
         "csrf_token": sesion["csrf_token"],

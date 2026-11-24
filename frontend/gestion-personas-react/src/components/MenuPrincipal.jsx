@@ -8,6 +8,7 @@ import ModificarPersona from "../features/personas/modificar/ModificarPersona.js
 import EliminarPersona from "../features/personas/eliminar/EliminarPersona.jsx";
 import Auditoria from "../features/auditoria/Auditoria.jsx";
 import ChatbotIA from "../features/consultas-ia/ChatbotIA.jsx";
+import ControlServicios from "../features/administracion/ControlServicios.jsx";
 
 // Opciones del menú principal
 const modulos = [
@@ -53,19 +54,29 @@ const modulos = [
     descripcion:
       "Consultas inteligentes en lenguaje natural.",
   },
+  {
+    id: "servicios",
+    nombre: "Control de servicios",
+    descripcion:
+      "Habilita o deshabilita el microservicio de consulta de personas.",
+    soloAdmin: true,
+  },
 ];
 
-export default function MenuPrincipal({ contenidoConsultar }) {
+export default function MenuPrincipal({ contenidoConsultar, rol }) {
   const [moduloActivo, setModuloActivo] = useState("inicio");
+  const modulosDisponibles = modulos.filter(
+    (item) => !item.soloAdmin || rol === "ADMINISTRADOR"
+  );
 
   // Obtener información del módulo seleccionado
   const modulo =
-    modulos.find((item) => item.id === moduloActivo) ||
-    modulos[0];
+    modulosDisponibles.find((item) => item.id === moduloActivo) ||
+    modulosDisponibles[0];
 
   // Mostrar el componente correspondiente
   function mostrarContenido() {
-    switch (moduloActivo) {
+    switch (modulo.id) {
       case "inicio":
         return (
           <div className="menu-bienvenida">
@@ -114,6 +125,9 @@ export default function MenuPrincipal({ contenidoConsultar }) {
       case "chatbot":
         return <ChatbotIA />;
 
+      case "servicios":
+        return rol === "ADMINISTRADOR" ? <ControlServicios /> : null;
+
       default:
         return (
           <div className="menu-modulo">
@@ -132,17 +146,17 @@ export default function MenuPrincipal({ contenidoConsultar }) {
         <p>Gestión de personas</p>
 
         <nav aria-label="Módulos del sistema">
-          {modulos.map((item) => (
+          {modulosDisponibles.map((item) => (
             <button
               key={item.id}
               type="button"
               className={
-                moduloActivo === item.id
+                modulo.id === item.id
                   ? "menu-opcion activa"
                   : "menu-opcion"
               }
               aria-current={
-                moduloActivo === item.id
+                modulo.id === item.id
                   ? "page"
                   : undefined
               }
