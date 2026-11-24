@@ -1,0 +1,24 @@
+
+/* Añadir al final de CrearPersona.css. No reemplaces tu CSS actual. */
+.crear-foto-vista {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+}
+.crear-foto-vista img {
+  width: 160px;
+  height: 160px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid #cbd5e1;
+}
+.crear-foto-vista button {
+  padding: 7px 12px;
+  border: 1px solid #94a3b8;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}

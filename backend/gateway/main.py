@@ -1,3 +1,4 @@
+
 """
 API Gateway del sistema de gestión de personas.
 
@@ -244,6 +245,8 @@ async def reenviar(
         "content-type",
         "set-cookie",
         "location",
+        "cache-control",
+        "x-content-type-options",
     ):
 
         valor = respuesta.headers.get(nombre)
@@ -357,6 +360,35 @@ async def crear_persona(request: Request):
         request,
         "crear",
         "/personas",
+    )
+
+
+# =====================================================
+# FOTOGRAFÍA DE PERSONA (LECTURA PROTEGIDA)
+# =====================================================
+
+@app.get("/api/personas/{documento}/fotografia")
+async def consultar_fotografia(
+    documento: str,
+    request: Request,
+    tipo_documento: str = Query(...),
+):
+    verificar_acceso(request, "CONSULTAR")
+    validar_documento(tipo_documento, documento)
+
+    ruta = (
+        "/personas/"
+        + quote(tipo_documento, safe="")
+        + "/"
+        + quote(documento, safe="")
+        + "/fotografia"
+    )
+
+    return await reenviar(
+        request,
+        "consultar",
+        ruta,
+        excluir_parametros=("tipo_documento",),
     )
 
 

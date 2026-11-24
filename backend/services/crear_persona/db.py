@@ -17,6 +17,7 @@ def conexion():
         row_factory=dict_row,
     )
 
+
 # 2. REGISTRAR AUDITORÍA
 def registrar_auditoria(
     conn,
@@ -50,12 +51,9 @@ def registrar_auditoria(
             ),
         )
 
+
 # 3. CREAR PERSONA
-def crear_persona(
-    datos,
-    usuario,
-    foto_ruta=None,
-):
+def crear_persona(datos, usuario, foto_ruta=None):
 
     with conexion() as conn:
 

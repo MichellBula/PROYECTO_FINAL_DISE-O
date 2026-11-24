@@ -1,6 +1,7 @@
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./CrearPersona.css";
+import "./CrearPersonaFoto.css";
 
 export default function CrearPersona() {
   const [mensaje, setMensaje] = useState("");
@@ -10,23 +11,18 @@ export default function CrearPersona() {
   const [vistaPrevia, setVistaPrevia] = useState("");
   const fotografiaInputRef = useRef(null);
 
-  // Fotografía
-
   useEffect(() => {
     if (!fotografia) {
       setVistaPrevia("");
       return;
     }
-
     const url = URL.createObjectURL(fotografia);
     setVistaPrevia(url);
-
     return () => URL.revokeObjectURL(url);
   }, [fotografia]);
 
   function seleccionarFotografia(evento) {
     const archivo = evento.target.files?.[0] ?? null;
-
     setMensaje("");
     setError(false);
 
@@ -34,7 +30,6 @@ export default function CrearPersona() {
       setFotografia(null);
       return;
     }
-
     if (!["image/jpeg", "image/png"].includes(archivo.type)) {
       evento.target.value = "";
       setFotografia(null);
@@ -42,7 +37,6 @@ export default function CrearPersona() {
       setMensaje("La fotografía debe ser JPG o PNG.");
       return;
     }
-
     if (archivo.size === 0 || archivo.size > 2 * 1024 * 1024) {
       evento.target.value = "";
       setFotografia(null);
@@ -50,7 +44,6 @@ export default function CrearPersona() {
       setMensaje("La fotografía no debe estar vacía ni superar los 2 MB.");
       return;
     }
-
     setFotografia(archivo);
   }
 
@@ -216,29 +209,20 @@ export default function CrearPersona() {
 
       // 2. Con foto enviamos multipart; sin foto mantenemos JSON.
       // Nunca configurar Content-Type manualmente con FormData.
-
       let cuerpo;
-
-      const encabezados = {
-        "X-CSRF-Token": datosSesion.csrf_token,
-      };
-
+      const encabezados = { "X-CSRF-Token": datosSesion.csrf_token };
       if (fotografia) {
         const datosConFoto = new FormData();
-
         Object.entries(datosPersona).forEach(([clave, valor]) => {
           datosConFoto.append(clave, valor ?? "");
         });
-
         datosConFoto.append("fotografia", fotografia);
         cuerpo = datosConFoto;
-
       } else {
         encabezados["Content-Type"] = "application/json";
         cuerpo = JSON.stringify(datosPersona);
       }
 
-      // 3. Registrar la persona a través de la Gateway.
       const respuesta = await fetch("/api/personas", {
         method: "POST",
         credentials: "include",
@@ -309,6 +293,7 @@ export default function CrearPersona() {
       );
 
       formulario.reset();
+      setFotografia(null);
 
     } catch (error) {
       console.error("Error al crear persona:", error);
@@ -446,7 +431,6 @@ export default function CrearPersona() {
 
           <label className="crear-foto">
             Fotografía (opcional)
-
             <input
               name="fotografia"
               ref={fotografiaInputRef}
@@ -455,16 +439,10 @@ export default function CrearPersona() {
               onChange={seleccionarFotografia}
               disabled={guardando}
             />
-
             <small>JPG o PNG, máximo 2 MB.</small>
-
             {vistaPrevia && (
               <span className="crear-foto-vista">
-                <img
-                  src={vistaPrevia}
-                  alt="Vista previa de fotografía seleccionada"
-                />
-
+                <img src={vistaPrevia} alt="Vista previa de fotografía seleccionada" />
                 <button
                   type="button"
                   onClick={() => {

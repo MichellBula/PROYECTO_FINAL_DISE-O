@@ -1,6 +1,7 @@
 
-import {  useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./ModificarPersona.css";
+import FotoPersona from "../../../components/FotoPersona.jsx";
 
 const LIMITE_FOTO = 2 * 1024 * 1024;
 
@@ -8,31 +9,24 @@ export default function ModificarPersona() {
   const [tipoDocumento, setTipoDocumento] = useState("Cédula");
   const [numeroDocumento, setNumeroDocumento] = useState("");
   const [persona, setPersona] = useState(null);
-
-  // Tipo original para identificar el registro en PostgreSQL
+  const [versionFoto, setVersionFoto] = useState(0);
   const [tipoDocOriginal, setTipoDocOriginal] = useState("");
-
   const [mensaje, setMensaje] = useState("");
   const [error, setError] = useState(false);
   const [cargando, setCargando] = useState(false);
-
   const [accionFoto, setAccionFoto] = useState("conservar");
   const [fotoNueva, setFotoNueva] = useState(null);
   const [vistaPrevia, setVistaPrevia] = useState("");
   const inputFoto = useRef(null);
 
-
-  // Fecha actual en horario local
   const fechaActual = new Date();
-
   const hoy = [
     fechaActual.getFullYear(),
     String(fechaActual.getMonth() + 1).padStart(2, "0"),
     String(fechaActual.getDate()).padStart(2, "0"),
   ].join("-");
 
-  // MANEJO DE FOTO
-    useEffect(() => {
+  useEffect(() => {
     if (!fotoNueva) {
       setVistaPrevia("");
       return;
@@ -70,10 +64,6 @@ export default function ModificarPersona() {
     setFotoNueva(archivo);
     setAccionFoto("reemplazar");
   }
-
-  // ==================================================
-  // 1. BUSCAR PERSONA
-  // ==================================================
 
   async function buscarPersona(evento) {
     evento.preventDefault();
@@ -229,6 +219,7 @@ export default function ModificarPersona() {
       setTipoDocOriginal(actualizada?.tipo_documento ?? nuevoTipo);
       setTipoDocumento(actualizada?.tipo_documento ?? nuevoTipo);
       reiniciarFoto();
+      setVersionFoto((version) => version + 1);
       setError(false);
       setMensaje("Persona modificada correctamente en PostgreSQL.");
     } catch (err) {
@@ -327,17 +318,11 @@ export default function ModificarPersona() {
 
           <div className="modificar-foto-panel">
             <h4>Fotografía de la persona</h4>
-            {persona.foto_ruta ? (
-              <p>Esta persona tiene una fotografía guardada.</p>
-            ) : persona.foto_ruta === null ? (
-              <p>Esta persona no tiene fotografía.</p>
-            ) : (
-              <p>El servicio de consulta todavía no informa si tiene fotografía.</p>
-            )}
-            <p className="modificar-foto-ayuda">
-              Podrás ver la fotografía actual cuando agreguemos su ruta protegida de lectura.
-              Por ahora puedes elegir conservar, reemplazar o quitar la imagen asociada.
-            </p>
+            <FotoPersona
+              persona={persona}
+              tipoDocumento={tipoDocOriginal}
+              version={versionFoto}
+            />
 
             <label>Nueva fotografía (opcional)
               <input ref={inputFoto} type="file" name="fotografia"

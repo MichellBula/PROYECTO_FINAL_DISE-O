@@ -1,3 +1,4 @@
+
 import logging
 import os
 import re
@@ -16,16 +17,10 @@ from auth import usuario_autenticado
 from db import conexion, modificar_persona_db, registrar_auditoria
 from schemas import PersonaModificar
 
-# 1. CONFIGURACIÓN DE FASTAPI
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("modificar_persona")
 
-app = FastAPI(
-    title="Microservicio de modificación de personas",
-    version="0.2.0"
-)
-
-# Permitir solicitudes desde React
+app = FastAPI(title="Microservicio de modificación de personas", version="0.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -38,12 +33,14 @@ MAX_FOTO_BYTES = 2 * 1024 * 1024
 MAX_FOTO_PIXELES = 8_000_000
 DIRECTORIO_FOTOS = Path(os.getenv("PERSONAS_FOTOS_DIR", "/data/fotografias"))
 
+
 def auditar_error(usuario, tipo_doc, numero, detalle):
     try:
         with conexion() as conn:
             registrar_auditoria(conn, usuario, tipo_doc, numero, "ERROR", detalle)
     except psycopg.Error:
         log.exception("No se pudo registrar el intento fallido de modificación")
+
 
 async def procesar_foto(foto: UploadFile) -> bytes:
     if foto.content_type not in ("image/jpeg", "image/png"):
@@ -88,7 +85,7 @@ def borrar_foto_propia(nombre: str | None):
         except OSError:
             log.exception("No se pudo eliminar una fotografía antigua")
 
-# 2. COMPROBAR ESTADO DEL MICROSERVICIO
+
 @app.get("/salud")
 def salud():
     try:
@@ -99,7 +96,7 @@ def salud():
         log.exception("Error conectando a PostgreSQL")
         raise HTTPException(503, "Base de datos no disponible") from exc
 
-# 3. MODIFICAR PERSONA
+
 @app.put("/modificar-persona/personas/{tipo_doc_original}/{numero_documento}")
 async def modificar_persona_endpoint(
     tipo_doc_original: str,

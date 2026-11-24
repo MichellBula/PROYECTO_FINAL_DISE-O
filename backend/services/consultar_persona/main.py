@@ -1,3 +1,4 @@
+
 import logging
 import re
 from urllib.parse import unquote
@@ -10,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from auth import usuario_autenticado
 from db import conexion, registrar_auditoria
+from fotos import router_fotografias
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("consultar_persona")
@@ -22,10 +24,16 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
+# Ruta de lectura autenticada de fotografías.
+app.include_router(router_fotografias)
+
 
 def documento_de_ruta(path: str):
     partes = path.split("/")
-    if len(partes) != 4 or partes[1] != "personas":
+    # También identifica el documento en /personas/{tipo}/{numero}/fotografia.
+    if len(partes) not in (4, 5) or partes[1] != "personas":
+        return None, None
+    if len(partes) == 5 and partes[4] != "fotografia":
         return None, None
     tipo, numero = unquote(partes[2]), unquote(partes[3])
     if tipo not in ("Cédula", "Tarjeta de identidad") or not re.fullmatch(r"[0-9]{1,10}", numero):
@@ -56,7 +64,7 @@ async def auditar_consultas(request: Request, call_next):
             registrar_auditoria,
             usuario=usuario,
             resultado=resultado,
-            detalle=f"Consulta convencional: HTTP {codigo}",
+            detalle=f"{'Consulta de fotografía' if request.url.path.endswith('/fotografia') else 'Consulta convencional'}: HTTP {codigo}",
             tipo_documento=tipo,
             numero_documento=numero,
         )

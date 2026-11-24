@@ -52,9 +52,11 @@ services:
     environment:
       PGHOST: db
       PGPORT: "5432"
+      PERSONAS_FOTOS_DIR: /data/fotografias
 
     volumes:
       - ./backend/services/consultar_persona/.env:/app/backend/services/consultar_persona/.env:ro
+      - ./uploads:/data/fotografias:ro
 
     ports:
       - "127.0.0.1:8000:8000"
@@ -82,9 +84,11 @@ services:
     environment:
       PGHOST: db
       PGPORT: "5432"
+      PERSONAS_FOTOS_DIR: /data/fotografias
 
     volumes:
       - ./backend/services/crear_persona/.env:/app/backend/services/crear_persona/.env:ro
+      - ./uploads:/data/fotografias
 
     ports:
       - "127.0.0.1:8002:8002"
@@ -112,12 +116,14 @@ services:
     environment:
       PGHOST: db
       PGPORT: "5432"
+      PERSONAS_FOTOS_DIR: /data/fotografias
 
     volumes:
       - ./backend/services/modificar_persona/.env:/app/backend/services/modificar_persona/.env:ro
 
-      # Volumen para conservar las fotografias
+      # Conserva acceso a fotos antiguas y usa la ruta nueva compartida.
       - ./uploads:/app/uploads
+      - ./uploads:/data/fotografias
 
     ports:
       - "127.0.0.1:8003:8003"
