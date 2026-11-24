@@ -156,12 +156,15 @@ export default function App() {
 
     try {
 
-      const datos = await iniciarSesion(
+      await iniciarSesion(
         correo.trim(),
         contrasena
       );
 
-      setSesion(datos.usuario);
+      // La respuesta de Roble no incluye el rol de nuestra base local.
+      // Consultar /auth/yo permite mostrar los módulos autorizados.
+      const sesionActual = await consultarSesion();
+      setSesion(sesionActual.usuario);
 
       setContrasena("");
 
@@ -722,8 +725,9 @@ export default function App() {
       {!verificando && sesion && (
 
         <MenuPrincipal
-          contenidoConsultar={contenidoConsultar}
-        />
+  contenidoConsultar={contenidoConsultar}
+  rol={sesion.rol}
+/>
 
       )}
 
