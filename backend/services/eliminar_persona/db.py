@@ -52,6 +52,22 @@ def registrar_auditoria(
         )
 
 
+def obtener_persona_para_eliminacion_db(tipo_documento, numero_documento):
+    """Obtiene únicamente los datos necesarios para confirmar la eliminación."""
+    with conexion() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT tipo_documento, numero_documento, primer_nombre,
+                       segundo_nombre, apellidos, correo, celular
+                FROM public.persona
+                WHERE tipo_documento = %s AND numero_documento = %s
+                """,
+                (tipo_documento, numero_documento),
+            )
+            return cur.fetchone()
+
+
 # 3. ELIMINAR PERSONA
 def eliminar_persona_db(tipo_documento, numero_documento, usuario):
     with conexion() as conn:
