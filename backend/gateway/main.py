@@ -364,6 +364,54 @@ async def crear_persona(request: Request):
 
 
 # =====================================================
+# CONSULTAS PROPIAS PARA EL FORMULARIO DE MODIFICACIÓN
+# =====================================================
+
+@app.get("/api/personas/{documento}/edicion")
+async def cargar_persona_para_editar(
+    documento: str,
+    request: Request,
+    tipo_documento: str = Query(...),
+):
+    # Estas lecturas son parte del proceso de MODIFICAR, no de CONSULTAR.
+    verificar_acceso(request, "MODIFICAR")
+    validar_documento(tipo_documento, documento)
+
+    ruta = (
+        "/modificar-persona/personas/"
+        + quote(tipo_documento, safe="")
+        + "/"
+        + quote(documento, safe="")
+    )
+    return await reenviar(
+        request, "modificar", ruta,
+        excluir_parametros=("tipo_documento",),
+    )
+
+
+@app.get("/api/personas/{documento}/edicion/fotografia")
+async def cargar_fotografia_para_editar(
+    documento: str,
+    request: Request,
+    tipo_documento: str = Query(...),
+):
+    verificar_acceso(request, "MODIFICAR")
+    validar_documento(tipo_documento, documento)
+
+    ruta = (
+        "/modificar-persona/personas/"
+        + quote(tipo_documento, safe="")
+        + "/"
+        + quote(documento, safe="")
+        + "/fotografia"
+    )
+    return await reenviar(
+        request, "modificar", ruta,
+        excluir_parametros=("tipo_documento",),
+    )
+
+
+# =====================================================
 # FOTOGRAFÍA DE PERSONA (LECTURA PROTEGIDA)
 # =====================================================
 

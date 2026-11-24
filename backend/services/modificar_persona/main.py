@@ -10,11 +10,17 @@ from typing import Literal
 import psycopg
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import ValidationError
 
 from auth import usuario_autenticado
-from db import conexion, modificar_persona_db, registrar_auditoria
+from db import (
+    conexion,
+    modificar_persona_db,
+    obtener_persona_para_edicion,
+    registrar_auditoria,
+)
 from schemas import PersonaModificar
 
 logging.basicConfig(level=logging.INFO)
@@ -32,6 +38,21 @@ app.add_middleware(
 MAX_FOTO_BYTES = 2 * 1024 * 1024
 MAX_FOTO_PIXELES = 8_000_000
 DIRECTORIO_FOTOS = Path(os.getenv("PERSONAS_FOTOS_DIR", "/data/fotografias"))
+NOMBRE_FOTO_VALIDO = re.compile(r"[0-9a-f]{32}\.jpg\Z")
+
+
+def validar_identificador(tipo_documento: str, numero_documento: str):
+    if tipo_documento not in ("Cédula", "Tarjeta de identidad"):
+        raise HTTPException(422, "Tipo de documento no válido")
+    if not re.fullmatch(r"[0-9]{1,10}", numero_documento):
+        raise HTTPException(422, "Número de documento no válido")
+
+
+def usuario_editor(usuario: dict = Depends(usuario_autenticado)) -> dict:
+    """Aplica permisos también al microservicio, incluso sin pasar por Gateway."""
+    if usuario.get("rol") not in ("ADMINISTRADOR", "OPERADOR"):
+        raise HTTPException(403, "No tienes permisos para modificar personas")
+    return usuario
 
 
 def auditar_error(usuario, tipo_doc, numero, detalle):
@@ -97,6 +118,61 @@ def salud():
         raise HTTPException(503, "Base de datos no disponible") from exc
 
 
+@app.get("/modificar-persona/personas/{tipo_doc_original}/{numero_documento}")
+def obtener_persona_para_modificar(
+    tipo_doc_original: str,
+    numero_documento: str,
+    _usuario: dict = Depends(usuario_editor),
+):
+    """
+    Lectura propia del microservicio para precargar el formulario de edición.
+    No llama al microservicio consultar_persona.
+    """
+    validar_identificador(tipo_doc_original, numero_documento)
+    try:
+        persona = obtener_persona_para_edicion(tipo_doc_original, numero_documento)
+    except psycopg.Error as exc:
+        log.exception("No se pudo obtener la persona para edición")
+        raise HTTPException(503, "No se pudo cargar la persona") from exc
+    if persona is None:
+        raise HTTPException(404, "Persona no encontrada")
+    return {"persona": persona}
+
+
+@app.get("/modificar-persona/personas/{tipo_doc_original}/{numero_documento}/fotografia")
+def obtener_fotografia_para_modificar(
+    tipo_doc_original: str,
+    numero_documento: str,
+    _usuario: dict = Depends(usuario_editor),
+):
+    """
+    Foto para el formulario de edición, sin depender del microservicio de consulta.
+    """
+    validar_identificador(tipo_doc_original, numero_documento)
+    try:
+        persona = obtener_persona_para_edicion(tipo_doc_original, numero_documento)
+    except psycopg.Error as exc:
+        log.exception("No se pudo consultar la fotografía para edición")
+        raise HTTPException(503, "No se pudo cargar la fotografía") from exc
+
+    nombre = str(persona.get("foto_ruta") or "") if persona else ""
+    if not NOMBRE_FOTO_VALIDO.fullmatch(nombre):
+        raise HTTPException(404, "Fotografía no disponible")
+
+    ruta = DIRECTORIO_FOTOS / nombre
+    if not ruta.is_file():
+        raise HTTPException(404, "Fotografía no disponible")
+
+    return FileResponse(
+        path=ruta,
+        media_type="image/jpeg",
+        headers={
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 @app.put("/modificar-persona/personas/{tipo_doc_original}/{numero_documento}")
 async def modificar_persona_endpoint(
     tipo_doc_original: str,
@@ -111,11 +187,10 @@ async def modificar_persona_endpoint(
     celular: str | None = Form(None),
     accion_foto: Literal["conservar", "reemplazar", "quitar"] = Form("conservar"),
     foto: UploadFile | None = File(None),
-    usuario: dict = Depends(usuario_autenticado),
+    usuario: dict = Depends(usuario_editor),
 ):
     usuario_id = f"roble:{usuario['user_id']}"
-    if not re.fullmatch(r"[0-9]{1,10}", numero_documento):
-        raise HTTPException(422, "Número de documento no válido")
+    validar_identificador(tipo_doc_original, numero_documento)
 
     try:
         datos = PersonaModificar(

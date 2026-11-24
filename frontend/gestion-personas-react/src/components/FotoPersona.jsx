@@ -3,7 +3,12 @@ import { useEffect, useState } from "react";
 import "./FotoPersona.css";
 
 /** Foto actual de una persona, leida por Gateway con la sesion de Roble. */
-export default function FotoPersona({ persona, version = 0, tipoDocumento = null }) {
+export default function FotoPersona({
+  persona,
+  version = 0,
+  tipoDocumento = null,
+  modoEdicion = false,
+}) {
   // En edición se consulta con el tipo persistido, no el valor aún sin guardar.
   const tipo = tipoDocumento ?? persona?.tipo_documento;
   const numero = persona?.numero_documento;
@@ -21,7 +26,8 @@ export default function FotoPersona({ persona, version = 0, tipoDocumento = null
 
     async function cargarFotografia() {
       try {
-        const ruta = `/api/personas/${encodeURIComponent(numero)}/fotografia` +
+        const sufijo = modoEdicion ? "/edicion/fotografia" : "/fotografia";
+        const ruta = `/api/personas/${encodeURIComponent(numero)}${sufijo}` +
           `?tipo_documento=${encodeURIComponent(tipo)}`;
         const respuesta = await fetch(ruta, {
           method: "GET",
@@ -61,7 +67,7 @@ export default function FotoPersona({ persona, version = 0, tipoDocumento = null
       controlador.abort();
       if (urlTemporal) URL.revokeObjectURL(urlTemporal);
     };
-  }, [tipo, numero, version]);
+  }, [tipo, numero, version, modoEdicion]);
 
   return (
     <section className="foto-persona" aria-label="Fotografía asignada">

@@ -29,6 +29,35 @@ def registrar_auditoria(conn, usuario, tipo_documento, numero_documento, resulta
         )
 
 
+def obtener_persona_para_edicion(tipo_documento: str, numero_documento: str):
+    """
+    Obtiene la información indispensable para el formulario de edición.
+    Consulta PostgreSQL directamente: no depende del microservicio de consulta.
+    """
+    with conexion() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    tipo_documento,
+                    numero_documento,
+                    primer_nombre,
+                    segundo_nombre,
+                    apellidos,
+                    fecha_nacimiento,
+                    genero,
+                    correo,
+                    celular,
+                    foto_ruta
+                FROM public.persona
+                WHERE tipo_documento = %s
+                  AND numero_documento = %s
+                """,
+                (tipo_documento, numero_documento),
+            )
+            return cur.fetchone()
+
+
 def modificar_persona_db(
     datos,
     tipo_doc_original,

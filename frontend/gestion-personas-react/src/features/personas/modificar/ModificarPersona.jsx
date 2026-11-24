@@ -80,12 +80,12 @@ export default function ModificarPersona() {
 
     setCargando(true);
     try {
-      // Se conserva el contrato actual de la API Gateway:
-      // GET /api/personas/{numero}?tipo_documento={tipo}
+      // Lectura propia de modificación, independiente de consultar_persona.
+      // GET /api/personas/{numero}/edicion?tipo_documento={tipo}
       const numero = encodeURIComponent(numeroDocumento);
       const tipo = encodeURIComponent(tipoDocumento);
       const respuesta = await fetch(
-        `/api/personas/${numero}?tipo_documento=${tipo}`,
+        `/api/personas/${numero}/edicion?tipo_documento=${tipo}`,
         { credentials: "include" }
       );
       const resultado = await respuesta.json().catch(() => null);
@@ -322,6 +322,7 @@ export default function ModificarPersona() {
               persona={persona}
               tipoDocumento={tipoDocOriginal}
               version={versionFoto}
+              modoEdicion
             />
 
             <label>Nueva fotografía (opcional)
