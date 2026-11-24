@@ -1,7 +1,6 @@
 
 import { useState } from "react";
 import {
-  consultarPersona,
   eliminarPersona as eliminarPersonaAPI,
 } from "../../../services/api";
 
@@ -31,10 +30,21 @@ export default function EliminarPersona() {
     setCargando(true);
 
     try {
-      const datos = await consultarPersona(
-        tipoDocumento,
-        numeroDocumento
+      // Lectura exclusiva de eliminación: no llama a consultar_persona.
+      const numero = encodeURIComponent(numeroDocumento);
+      const tipo = encodeURIComponent(tipoDocumento);
+      const respuesta = await fetch(
+        `/api/personas/${numero}/eliminacion?tipo_documento=${tipo}`,
+        { credentials: "include" }
       );
+      const datos = await respuesta.json().catch(() => ({}));
+      if (!respuesta.ok) {
+        throw new Error(
+          typeof datos?.detail === "string"
+            ? datos.detail
+            : `No se pudo buscar la persona (HTTP ${respuesta.status}).`
+        );
+      }
 
       const personaEncontrada = datos.persona || datos;
 

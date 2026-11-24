@@ -412,6 +412,32 @@ async def cargar_fotografia_para_editar(
 
 
 # =====================================================
+# CONSULTA PROPIA PARA CONFIRMAR LA ELIMINACIÓN
+# =====================================================
+
+@app.get("/api/personas/{documento}/eliminacion")
+async def cargar_persona_para_eliminar(
+    documento: str,
+    request: Request,
+    tipo_documento: str = Query(...),
+):
+    # Lectura protegida por el permiso ELIMINAR.
+    verificar_acceso(request, "ELIMINAR")
+    validar_documento(tipo_documento, documento)
+
+    ruta = (
+        "/eliminar-persona/personas/"
+        + quote(tipo_documento, safe="")
+        + "/"
+        + quote(documento, safe="")
+    )
+    return await reenviar(
+        request, "eliminar", ruta,
+        excluir_parametros=("tipo_documento",),
+    )
+
+
+# =====================================================
 # FOTOGRAFÍA DE PERSONA (LECTURA PROTEGIDA)
 # =====================================================
 

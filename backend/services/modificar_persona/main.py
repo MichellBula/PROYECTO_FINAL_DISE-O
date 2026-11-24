@@ -1,259 +1,133 @@
 
 import logging
-import os
 import re
-import uuid
-from io import BytesIO
-from pathlib import Path
-from typing import Literal
-
 import psycopg
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+
+from urllib.parse import unquote
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from PIL import Image, ImageOps, UnidentifiedImageError
-from pydantic import ValidationError
 
 from auth import usuario_autenticado
 from db import (
     conexion,
-    modificar_persona_db,
-    obtener_persona_para_edicion,
-    registrar_auditoria,
+    eliminar_persona_db,
+    obtener_persona_para_eliminacion_db,
 )
-from schemas import PersonaModificar
 
+# 1. CONFIGURACIÓN DE FASTAPI
 logging.basicConfig(level=logging.INFO)
-log = logging.getLogger("modificar_persona")
+log = logging.getLogger("eliminar_persona")
 
-app = FastAPI(title="Microservicio de modificación de personas", version="0.2.0")
+app = FastAPI(
+    title="Microservicio de eliminación de personas",
+    version="0.1.0"
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+    ],
     allow_credentials=True,
-    allow_methods=["GET", "PUT"],
-    allow_headers=["Authorization", "Content-Type", "X-CSRF-Token"],
+    allow_methods=["DELETE", "GET"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
-MAX_FOTO_BYTES = 2 * 1024 * 1024
-MAX_FOTO_PIXELES = 8_000_000
-DIRECTORIO_FOTOS = Path(os.getenv("PERSONAS_FOTOS_DIR", "/data/fotografias"))
-NOMBRE_FOTO_VALIDO = re.compile(r"[0-9a-f]{32}\.jpg\Z")
 
-
-def validar_identificador(tipo_documento: str, numero_documento: str):
-    if tipo_documento not in ("Cédula", "Tarjeta de identidad"):
-        raise HTTPException(422, "Tipo de documento no válido")
-    if not re.fullmatch(r"[0-9]{1,10}", numero_documento):
-        raise HTTPException(422, "Número de documento no válido")
-
-
-def usuario_editor(usuario: dict = Depends(usuario_autenticado)) -> dict:
-    """Aplica permisos también al microservicio, incluso sin pasar por Gateway."""
-    if usuario.get("rol") not in ("ADMINISTRADOR", "OPERADOR"):
-        raise HTTPException(403, "No tienes permisos para modificar personas")
+def exigir_administrador(usuario: dict = Depends(usuario_autenticado)) -> dict:
+    """Rechaza accesos directos al servicio de usuarios sin rol administrador."""
+    if usuario.get("rol") != "ADMINISTRADOR":
+        raise HTTPException(
+            status_code=403,
+            detail="Solo un administrador puede eliminar personas",
+        )
     return usuario
 
 
-def auditar_error(usuario, tipo_doc, numero, detalle):
-    try:
-        with conexion() as conn:
-            registrar_auditoria(conn, usuario, tipo_doc, numero, "ERROR", detalle)
-    except psycopg.Error:
-        log.exception("No se pudo registrar el intento fallido de modificación")
+def validar_documento(tipo_documento: str, numero_documento: str):
+    if tipo_documento not in ("Cédula", "Tarjeta de identidad"):
+        raise HTTPException(status_code=422, detail="Tipo de documento inválido")
+    if not re.fullmatch(r"[0-9]{1,10}", numero_documento):
+        raise HTTPException(status_code=422, detail="Número de documento inválido")
 
 
-async def procesar_foto(foto: UploadFile) -> bytes:
-    if foto.content_type not in ("image/jpeg", "image/png"):
-        raise HTTPException(400, "La fotografía debe ser JPG o PNG")
-
-    contenido = await foto.read(MAX_FOTO_BYTES + 1)
-    if not contenido or len(contenido) > MAX_FOTO_BYTES:
-        raise HTTPException(400, "La fotografía no puede estar vacía ni superar los 2 MB")
-
-    try:
-        with Image.open(BytesIO(contenido)) as original:
-            if original.format not in ("JPEG", "PNG"):
-                raise HTTPException(400, "El contenido no es una imagen JPG o PNG")
-            if original.width * original.height > MAX_FOTO_PIXELES:
-                raise HTTPException(400, "La imagen tiene demasiados píxeles")
-
-            imagen = ImageOps.exif_transpose(original)
-            imagen.thumbnail((1800, 1800), Image.Resampling.LANCZOS)
-            if imagen.mode == "RGBA" or (imagen.mode == "P" and "transparency" in imagen.info):
-                rgba = imagen.convert("RGBA")
-                fondo = Image.new("RGB", rgba.size, "white")
-                fondo.paste(rgba, mask=rgba.getchannel("A"))
-                imagen = fondo
-            else:
-                imagen = imagen.convert("RGB")
-
-            salida = BytesIO()
-            imagen.save(salida, format="JPEG", quality=85, optimize=True)
-            final = salida.getvalue()
-            if len(final) > MAX_FOTO_BYTES:
-                raise HTTPException(400, "La fotografía procesada supera los 2 MB")
-            return final
-    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
-        raise HTTPException(400, "La imagen está dañada o no es válida") from exc
-
-
-def borrar_foto_propia(nombre: str | None):
-    """Solo elimina archivos con el formato nuevo (UUID.jpg) del directorio compartido."""
-    if nombre and re.fullmatch(r"[0-9a-f]{32}\.jpg", nombre):
-        try:
-            (DIRECTORIO_FOTOS / nombre).unlink(missing_ok=True)
-        except OSError:
-            log.exception("No se pudo eliminar una fotografía antigua")
-
-
+# 2. ESTADO DEL MICROSERVICIO
 @app.get("/salud")
 def salud():
     try:
         with conexion() as conn:
-            conn.execute("SELECT 1").fetchone()
-        return {"estado": "ok", "postgres": "conectado"}
-    except psycopg.Error as exc:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+                cur.fetchone()
+
+        return {
+            "estado": "ok",
+            "postgres": "conectado"
+        }
+
+    except psycopg.Error:
         log.exception("Error conectando a PostgreSQL")
-        raise HTTPException(503, "Base de datos no disponible") from exc
+        raise HTTPException(
+            status_code=503,
+            detail="Base de datos no disponible"
+        )
 
 
-@app.get("/modificar-persona/personas/{tipo_doc_original}/{numero_documento}")
-def obtener_persona_para_modificar(
-    tipo_doc_original: str,
+# 3. OBTENER DATOS PARA CONFIRMAR LA ELIMINACIÓN
+@app.get("/eliminar-persona/personas/{tipo_documento}/{numero_documento}")
+def obtener_persona_para_eliminar(
+    tipo_documento: str,
     numero_documento: str,
-    _usuario: dict = Depends(usuario_editor),
+    _usuario: dict = Depends(exigir_administrador),
 ):
-    """
-    Lectura propia del microservicio para precargar el formulario de edición.
-    No llama al microservicio consultar_persona.
-    """
-    validar_identificador(tipo_doc_original, numero_documento)
+    # Consulta propia del microservicio de eliminación, sin llamar a consultar_persona.
+    validar_documento(tipo_documento, numero_documento)
     try:
-        persona = obtener_persona_para_edicion(tipo_doc_original, numero_documento)
+        persona = obtener_persona_para_eliminacion_db(
+            tipo_documento, numero_documento
+        )
     except psycopg.Error as exc:
-        log.exception("No se pudo obtener la persona para edición")
+        log.exception("No se pudo cargar la persona para eliminación")
         raise HTTPException(503, "No se pudo cargar la persona") from exc
+
     if persona is None:
         raise HTTPException(404, "Persona no encontrada")
     return {"persona": persona}
 
 
-@app.get("/modificar-persona/personas/{tipo_doc_original}/{numero_documento}/fotografia")
-def obtener_fotografia_para_modificar(
-    tipo_doc_original: str,
+# 4. ELIMINAR PERSONA
+@app.delete("/eliminar-persona/personas/{tipo_documento}/{numero_documento}")
+def eliminar_persona_endpoint(
+    tipo_documento: str,
     numero_documento: str,
-    _usuario: dict = Depends(usuario_editor),
+    usuario: dict = Depends(exigir_administrador)
 ):
-    """
-    Foto para el formulario de edición, sin depender del microservicio de consulta.
-    """
-    validar_identificador(tipo_doc_original, numero_documento)
-    try:
-        persona = obtener_persona_para_edicion(tipo_doc_original, numero_documento)
-    except psycopg.Error as exc:
-        log.exception("No se pudo consultar la fotografía para edición")
-        raise HTTPException(503, "No se pudo cargar la fotografía") from exc
-
-    nombre = str(persona.get("foto_ruta") or "") if persona else ""
-    if not NOMBRE_FOTO_VALIDO.fullmatch(nombre):
-        raise HTTPException(404, "Fotografía no disponible")
-
-    ruta = DIRECTORIO_FOTOS / nombre
-    if not ruta.is_file():
-        raise HTTPException(404, "Fotografía no disponible")
-
-    return FileResponse(
-        path=ruta,
-        media_type="image/jpeg",
-        headers={
-            "Cache-Control": "private, no-store",
-            "X-Content-Type-Options": "nosniff",
-        },
-    )
-
-
-@app.put("/modificar-persona/personas/{tipo_doc_original}/{numero_documento}")
-async def modificar_persona_endpoint(
-    tipo_doc_original: str,
-    numero_documento: str,
-    tipo_documento: str = Form(...),
-    primer_nombre: str = Form(...),
-    segundo_nombre: str | None = Form(None),
-    apellidos: str = Form(...),
-    fecha_nacimiento: str = Form(...),
-    genero: str = Form(...),
-    correo: str | None = Form(None),
-    celular: str | None = Form(None),
-    accion_foto: Literal["conservar", "reemplazar", "quitar"] = Form("conservar"),
-    foto: UploadFile | None = File(None),
-    usuario: dict = Depends(usuario_editor),
-):
+    tipo_documento = unquote(tipo_documento)
+    validar_documento(tipo_documento, numero_documento)
     usuario_id = f"roble:{usuario['user_id']}"
-    validar_identificador(tipo_doc_original, numero_documento)
 
     try:
-        datos = PersonaModificar(
+        persona_eliminada = eliminar_persona_db(
             tipo_documento=tipo_documento,
-            primer_nombre=primer_nombre,
-            segundo_nombre=segundo_nombre,
-            apellidos=apellidos,
-            fecha_nacimiento=fecha_nacimiento,
-            genero=genero,
-            correo=correo,
-            celular=celular,
+            numero_documento=numero_documento,
+            usuario=usuario_id
         )
-    except ValidationError as exc:
-        auditar_error(usuario_id, tipo_doc_original, numero_documento, "Validación fallida")
-        raise HTTPException(422, "Los datos enviados no cumplen las validaciones") from exc
 
-    if accion_foto == "reemplazar" and foto is None:
-        raise HTTPException(422, "Selecciona una fotografía para reemplazar la actual")
-    if accion_foto != "reemplazar" and foto is not None:
-        raise HTTPException(422, "La fotografía solo puede enviarse al elegir reemplazar")
-
-    nombre_nuevo = None
-    confirmado = False
-    try:
-        if foto is not None:
-            contenido = await procesar_foto(foto)
-            DIRECTORIO_FOTOS.mkdir(parents=True, exist_ok=True, mode=0o700)
-            nombre_nuevo = f"{uuid.uuid4().hex}.jpg"
-            ruta_nueva = DIRECTORIO_FOTOS / nombre_nuevo
-            with ruta_nueva.open("xb") as destino:
-                destino.write(contenido)
-            ruta_nueva.chmod(0o600)
-
-        try:
-            persona, foto_anterior = modificar_persona_db(
-                datos=datos,
-                tipo_doc_original=tipo_doc_original,
-                numero_documento=numero_documento,
-                usuario=usuario_id,
-                accion_foto=accion_foto,
-                nombre_foto=nombre_nuevo,
+        if not persona_eliminada:
+            raise HTTPException(
+                status_code=404,
+                detail="Persona no encontrada"
             )
-        except psycopg.errors.UniqueViolation as exc:
-            auditar_error(usuario_id, tipo_doc_original, numero_documento, "Documento duplicado al modificar")
-            raise HTTPException(409, "Ya existe otra persona con ese tipo y número de documento") from exc
-        except psycopg.Error as exc:
-            log.exception("Error de PostgreSQL al modificar")
-            auditar_error(usuario_id, tipo_doc_original, numero_documento, "Error de base de datos")
-            raise HTTPException(503, "No se pudo modificar la persona") from exc
 
-        if persona is None:
-            auditar_error(usuario_id, tipo_doc_original, numero_documento, "Persona no encontrada")
-            raise HTTPException(404, "Persona no encontrada")
+        return {
+            "mensaje": "Persona eliminada correctamente",
+            "persona": persona_eliminada
+        }
 
-        confirmado = True  # El bloque de conexión confirmó el UPDATE y la auditoría.
-        if accion_foto in {"reemplazar", "quitar"}:
-            borrar_foto_propia(foto_anterior)
-
-        return {"mensaje": "Persona actualizada correctamente", "persona": persona}
-
-    except OSError as exc:
-        log.exception("No se pudo escribir la fotografía")
-        raise HTTPException(503, "No se pudo almacenar la fotografía") from exc
-    finally:
-        if not confirmado:
-            borrar_foto_propia(nombre_nuevo)
+    except psycopg.Error:
+        log.exception("Error al eliminar persona")
+        raise HTTPException(
+            status_code=503,
+            detail="No se pudo eliminar la persona"
+        )

@@ -289,7 +289,7 @@ export default function CrearPersona() {
       setError(false);
 
       setMensaje(
-        "✅ Persona registrada correctamente en PostgreSQL."
+        " Persona registrada correctamente en PostgreSQL."
       );
 
       formulario.reset();

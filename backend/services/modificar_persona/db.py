@@ -5,6 +5,7 @@ from psycopg.rows import dict_row
 from config import config
 
 
+# 1. CONEXIÓN A POSTGRESQL
 def conexion():
     return psycopg.connect(
         host=config.PGHOST,
@@ -17,126 +18,82 @@ def conexion():
     )
 
 
-def registrar_auditoria(conn, usuario, tipo_documento, numero_documento, resultado, detalle):
+# 2. REGISTRAR AUDITORÍA
+def registrar_auditoria(
+    conn,
+    usuario,
+    tipo_documento,
+    numero_documento,
+    resultado,
+    detalle,
+):
     with conn.cursor() as cur:
         cur.execute(
             """
             INSERT INTO public.auditoria
-                (usuario, tipo_operacion, tipo_documento, numero_documento, resultado, detalle)
-            VALUES (%s, 'MODIFICAR', %s, %s, %s, %s)
+            (
+                usuario,
+                tipo_operacion,
+                tipo_documento,
+                numero_documento,
+                resultado,
+                detalle
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
             """,
-            (usuario[:255], tipo_documento, numero_documento, resultado, detalle),
+            (
+                usuario[:255],
+                "ELIMINAR",
+                tipo_documento,
+                numero_documento,
+                resultado,
+                detalle,
+            ),
         )
 
 
-def obtener_persona_para_edicion(tipo_documento: str, numero_documento: str):
-    """
-    Obtiene la información indispensable para el formulario de edición.
-    Consulta PostgreSQL directamente: no depende del microservicio de consulta.
-    """
+def obtener_persona_para_eliminacion_db(tipo_documento, numero_documento):
+    """Obtiene únicamente los datos necesarios para confirmar la eliminación."""
     with conexion() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT
-                    tipo_documento,
-                    numero_documento,
-                    primer_nombre,
-                    segundo_nombre,
-                    apellidos,
-                    fecha_nacimiento,
-                    genero,
-                    correo,
-                    celular,
-                    foto_ruta
+                SELECT tipo_documento, numero_documento, primer_nombre,
+                       segundo_nombre, apellidos, correo, celular
                 FROM public.persona
-                WHERE tipo_documento = %s
-                  AND numero_documento = %s
+                WHERE tipo_documento = %s AND numero_documento = %s
                 """,
                 (tipo_documento, numero_documento),
             )
             return cur.fetchone()
 
 
-def modificar_persona_db(
-    datos,
-    tipo_doc_original,
-    numero_documento,
-    usuario,
-    *,
-    accion_foto="conservar",
-    nombre_foto=None,
-):
-    """Retorna (persona_actualizada, foto_anterior). Todo el SQL y auditoría son transaccionales."""
-    if accion_foto not in {"conservar", "reemplazar", "quitar"}:
-        raise ValueError("Acción de fotografía no válida")
-    if accion_foto == "reemplazar" and not nombre_foto:
-        raise ValueError("Falta la nueva fotografía")
-
+# 3. ELIMINAR PERSONA
+def eliminar_persona_db(tipo_documento, numero_documento, usuario):
     with conexion() as conn:
         with conn.cursor() as cur:
-            # Bloquea la fila durante el cambio para recuperar la ruta anterior de forma consistente.
             cur.execute(
                 """
-                SELECT foto_ruta
-                FROM public.persona
-                WHERE tipo_documento = %s AND numero_documento = %s
-                FOR UPDATE
+                DELETE FROM public.persona
+                WHERE tipo_documento = %s
+                  AND numero_documento = %s
+                RETURNING tipo_documento, numero_documento
                 """,
-                (tipo_doc_original, numero_documento),
+                (tipo_documento, numero_documento),
             )
-            anterior = cur.fetchone()
-            if anterior is None:
-                return None, None
 
-            foto_anterior = anterior["foto_ruta"]
-            columnas_foto = ""
-            parametros_foto = []
-            if accion_foto == "reemplazar":
-                columnas_foto = ", foto_ruta = %s"
-                parametros_foto.append(nombre_foto)
-            elif accion_foto == "quitar":
-                columnas_foto = ", foto_ruta = NULL"
-
-            cur.execute(
-                f"""
-                UPDATE public.persona
-                SET tipo_documento = %s,
-                    primer_nombre = %s,
-                    segundo_nombre = %s,
-                    apellidos = %s,
-                    fecha_nacimiento = %s,
-                    genero = %s,
-                    correo = %s,
-                    celular = %s
-                    {columnas_foto}
-                WHERE tipo_documento = %s AND numero_documento = %s
-                RETURNING *
-                """,
-                (
-                    datos.tipo_documento,
-                    datos.primer_nombre,
-                    datos.segundo_nombre,
-                    datos.apellidos,
-                    datos.fecha_nacimiento,
-                    datos.genero,
-                    datos.correo,
-                    datos.celular,
-                    *parametros_foto,
-                    tipo_doc_original,
-                    numero_documento,
-                ),
-            )
             persona = cur.fetchone()
-            if persona is None:
-                return None, None
+
+        if not persona:
+            return None
 
         registrar_auditoria(
             conn=conn,
             usuario=usuario,
-            tipo_documento=datos.tipo_documento,
-            numero_documento=numero_documento,
+            tipo_documento=persona["tipo_documento"],
+            numero_documento=persona["numero_documento"],
             resultado="EXITO",
-            detalle=f"Persona modificada; fotografía: {accion_foto}",
+            detalle="Persona eliminada correctamente",
         )
-    return persona, foto_anterior
+
+    return persona

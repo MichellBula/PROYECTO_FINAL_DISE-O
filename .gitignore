@@ -5,6 +5,7 @@
 **/.env.*
 !.env.example
 !**/.env.example
+**/.venv/
 
 # Copias de seguridad con informacion personal
 backups/
